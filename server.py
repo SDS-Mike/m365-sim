@@ -14,7 +14,7 @@ import logging
 import sys
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -81,11 +81,13 @@ def load_fixtures(cloud: str, scenario: str) -> dict[str, dict]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown."""
-    # Startup: load fixtures
+    # Startup: load fixtures for default cloud
     fixtures = load_fixtures(CLOUD, SCENARIO)
     app.state.fixtures = fixtures
     app.state.cloud = CLOUD
     app.state.scenario = SCENARIO
+    # Pre-load alternate cloud fixtures for X-Mock-Cloud header support
+    app.state.cloud_fixtures = {CLOUD: fixtures}
     logger.info(f"Server starting with scenario={SCENARIO}, cloud={CLOUD}")
 
     yield
@@ -201,12 +203,23 @@ def parse_top_param(request: Request) -> int | None:
         return None
 
 
+def _get_fixtures_for_request(request: Request) -> dict[str, dict]:
+    """Get the fixture dict for this request, respecting X-Mock-Cloud header."""
+    override_cloud = request.headers.get("x-mock-cloud")
+    if override_cloud and override_cloud != app.state.cloud:
+        if override_cloud not in app.state.cloud_fixtures:
+            app.state.cloud_fixtures[override_cloud] = load_fixtures(override_cloud, app.state.scenario)
+            logger.info(f"Loaded fixtures for X-Mock-Cloud override: {override_cloud}")
+        return app.state.cloud_fixtures[override_cloud]
+    return app.state.fixtures
+
+
 def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResponse:
     """Return fixture data with optional $top truncation.
 
     Logs $filter, $select, $expand params if present (does not apply them).
     """
-    fixtures = app.state.fixtures
+    fixtures = _get_fixtures_for_request(request)
     data = fixtures.get(name)
 
     if data is None:
@@ -221,12 +234,12 @@ def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResp
         )
 
     # Log ignored query params
-    for param in ("filter", "select", "expand"):
+    for param in ("$filter", "$select", "$expand"):
         if param in request.query_params:
-            logger.info(f"Ignoring query param ${param}={request.query_params.get(param)}")
+            logger.info(f"Ignoring query param {param}={request.query_params.get(param)}")
 
     result = dict(data)  # shallow copy
-    if top is not None and "value" in result:
+    if top is not None and top >= 0 and "value" in result:
         result["value"] = result["value"][:top]
 
     return JSONResponse(content=result)
@@ -435,7 +448,7 @@ async def get_auth_methods_policy(request: Request):
 async def get_auth_method_config(method_id: str, request: Request):
     """GET /v1.0/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/{method_id}
     — extract and return specific auth method config by id."""
-    fixtures = app.state.fixtures
+    fixtures = _get_fixtures_for_request(request)
     data = fixtures.get("auth_methods_policy")
 
     if data is None:
@@ -450,9 +463,9 @@ async def get_auth_method_config(method_id: str, request: Request):
         )
 
     # Log ignored query params
-    for param in ("filter", "select", "expand"):
+    for param in ("$filter", "$select", "$expand"):
         if param in request.query_params:
-            logger.info(f"Ignoring query param ${param}={request.query_params.get(param)}")
+            logger.info(f"Ignoring query param {param}={request.query_params.get(param)}")
 
     # Find the auth method config by id in the authenticationMethodConfigurations array
     configs = data.get("authenticationMethodConfigurations", [])
@@ -499,7 +512,7 @@ async def post_ca_policy(request: Request):
     """POST /v1.0/identity/conditionalAccess/policies — return request body with added id and createdDateTime."""
     body = await request.json()
     body["id"] = str(uuid.uuid4())
-    body["createdDateTime"] = datetime.utcnow().isoformat() + "Z"
+    body["createdDateTime"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     logger.info(f"WRITE: POST /v1.0/identity/conditionalAccess/policies — created policy {body.get('displayName', 'unnamed')}")
 
@@ -522,7 +535,7 @@ async def post_compliance_policy(request: Request):
     """POST /v1.0/deviceManagement/deviceCompliancePolicies — return request body with added id and createdDateTime."""
     body = await request.json()
     body["id"] = str(uuid.uuid4())
-    body["createdDateTime"] = datetime.utcnow().isoformat() + "Z"
+    body["createdDateTime"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     logger.info(f"WRITE: POST /v1.0/deviceManagement/deviceCompliancePolicies — created policy {body.get('displayName', 'unnamed')}")
 
@@ -534,7 +547,7 @@ async def post_device_configuration(request: Request):
     """POST /v1.0/deviceManagement/deviceConfigurations — return request body with added id and createdDateTime."""
     body = await request.json()
     body["id"] = str(uuid.uuid4())
-    body["createdDateTime"] = datetime.utcnow().isoformat() + "Z"
+    body["createdDateTime"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     logger.info(f"WRITE: POST /v1.0/deviceManagement/deviceConfigurations — created configuration {body.get('displayName', 'unnamed')}")
 

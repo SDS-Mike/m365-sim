@@ -1,5 +1,28 @@
 {
   "@odata.context": "https://graph.microsoft.us/v1.0/$metadata#policies/authenticationMethodsPolicy",
   "_TODO": "Populate with GCC High-specific fixture data",
-  "value": []
+  "id": "authenticationMethodsPolicy",
+  "policyVersion": "1.5",
+  "authenticationMethodConfigurations": [
+    {
+      "@odata.type": "#microsoft.graph.fido2AuthenticationMethodConfiguration",
+      "id": "fido2",
+      "state": "disabled"
+    },
+    {
+      "@odata.type": "#microsoft.graph.microsoftAuthenticatorAuthenticationMethodConfiguration",
+      "id": "microsoftAuthenticator",
+      "state": "disabled"
+    },
+    {
+      "@odata.type": "#microsoft.graph.temporaryAccessPassAuthenticationMethodConfiguration",
+      "id": "temporaryAccessPass",
+      "state": "disabled"
+    },
+    {
+      "@odata.type": "#microsoft.graph.smsAuthenticationMethodConfiguration",
+      "id": "sms",
+      "state": "disabled"
+    }
+  ]
 }

@@ -1,5 +1,8 @@
 {
-  "@odata.context": "https://graph.microsoft.us/v1.0/$metadata#me",
+  "@odata.context": "https://graph.microsoft.us/v1.0/$metadata#users/$entity",
   "_TODO": "Populate with GCC High-specific fixture data",
-  "value": []
+  "id": "00000000-0000-0000-0000-000000000000",
+  "displayName": "Placeholder User",
+  "userPrincipalName": "placeholder@contoso-defense.us",
+  "userType": "Member"
 }
