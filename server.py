@@ -165,6 +165,20 @@ app.add_middleware(MockStatusMiddleware)
 app.add_middleware(AuthMiddleware)
 
 
+def parse_top_param(request: Request) -> int | None:
+    """Parse $top query parameter from request.
+
+    Returns None if not present or invalid.
+    """
+    top_str = request.query_params.get("$top")
+    if not top_str:
+        return None
+    try:
+        return int(top_str)
+    except ValueError:
+        return None
+
+
 def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResponse:
     """Return fixture data with optional $top truncation.
 
@@ -208,8 +222,9 @@ async def health():
 
 # Subtask 3.1.1: Identity and User Endpoints
 @app.get("/v1.0/users")
-async def get_users(request: Request, top: int | None = None):
+async def get_users(request: Request):
     """GET /v1.0/users — return users fixture."""
+    top = parse_top_param(request)
     return get_fixture("users", request, top)
 
 
@@ -220,14 +235,16 @@ async def get_me(request: Request):
 
 
 @app.get("/v1.0/me/authentication/methods")
-async def get_me_auth_methods(request: Request, top: int | None = None):
+async def get_me_auth_methods(request: Request):
     """GET /v1.0/me/authentication/methods — return me_auth_methods fixture."""
+    top = parse_top_param(request)
     return get_fixture("me_auth_methods", request, top)
 
 
 @app.get("/v1.0/users/{user_id}/authentication/methods")
-async def get_user_auth_methods(user_id: str, request: Request, top: int | None = None):
+async def get_user_auth_methods(user_id: str, request: Request):
     """GET /v1.0/users/{user_id}/authentication/methods — return me_auth_methods fixture."""
+    top = parse_top_param(request)
     return get_fixture("me_auth_methods", request, top)
 
 
@@ -238,130 +255,151 @@ async def get_organization(request: Request):
 
 
 @app.get("/v1.0/domains")
-async def get_domains(request: Request, top: int | None = None):
+async def get_domains(request: Request):
     """GET /v1.0/domains — return domains fixture."""
+    top = parse_top_param(request)
     return get_fixture("domains", request, top)
 
 
 @app.get("/v1.0/groups")
-async def get_groups(request: Request, top: int | None = None):
+async def get_groups(request: Request):
     """GET /v1.0/groups — return groups fixture."""
+    top = parse_top_param(request)
     return get_fixture("groups", request, top)
 
 
 @app.get("/v1.0/applications")
-async def get_applications(request: Request, top: int | None = None):
+async def get_applications(request: Request):
     """GET /v1.0/applications — return applications fixture."""
+    top = parse_top_param(request)
     return get_fixture("applications", request, top)
 
 
 @app.get("/v1.0/servicePrincipals")
-async def get_service_principals(request: Request, top: int | None = None):
+async def get_service_principals(request: Request):
     """GET /v1.0/servicePrincipals — return service_principals fixture."""
+    top = parse_top_param(request)
     return get_fixture("service_principals", request, top)
 
 
 # Subtask 3.1.2: Security, Devices, and Conditional Access Endpoints
 @app.get("/v1.0/devices")
-async def get_devices(request: Request, top: int | None = None):
+async def get_devices(request: Request):
     """GET /v1.0/devices — return devices fixture."""
+    top = parse_top_param(request)
     return get_fixture("devices", request, top)
 
 
 @app.get("/v1.0/deviceManagement/managedDevices")
-async def get_managed_devices(request: Request, top: int | None = None):
+async def get_managed_devices(request: Request):
     """GET /v1.0/deviceManagement/managedDevices — return managed_devices fixture."""
+    top = parse_top_param(request)
     return get_fixture("managed_devices", request, top)
 
 
 @app.get("/v1.0/deviceManagement/deviceCompliancePolicies")
-async def get_compliance_policies(request: Request, top: int | None = None):
+async def get_compliance_policies(request: Request):
     """GET /v1.0/deviceManagement/deviceCompliancePolicies — return compliance_policies fixture."""
+    top = parse_top_param(request)
     return get_fixture("compliance_policies", request, top)
 
 
 @app.get("/v1.0/deviceManagement/deviceConfigurations")
-async def get_device_configurations(request: Request, top: int | None = None):
+async def get_device_configurations(request: Request):
     """GET /v1.0/deviceManagement/deviceConfigurations — return device_configurations fixture."""
+    top = parse_top_param(request)
     return get_fixture("device_configurations", request, top)
 
 
 @app.get("/v1.0/deviceManagement/deviceEnrollmentConfigurations")
-async def get_enrollment_configurations(request: Request, top: int | None = None):
+async def get_enrollment_configurations(request: Request):
     """GET /v1.0/deviceManagement/deviceEnrollmentConfigurations — return device_enrollment_configurations fixture."""
+    top = parse_top_param(request)
     return get_fixture("device_enrollment_configurations", request, top)
 
 
 @app.get("/v1.0/identity/conditionalAccess/policies")
-async def get_ca_policies(request: Request, top: int | None = None):
+async def get_ca_policies(request: Request):
     """GET /v1.0/identity/conditionalAccess/policies — return conditional_access_policies fixture."""
+    top = parse_top_param(request)
     return get_fixture("conditional_access_policies", request, top)
 
 
 @app.get("/v1.0/identity/conditionalAccess/namedLocations")
-async def get_named_locations(request: Request, top: int | None = None):
+async def get_named_locations(request: Request):
     """GET /v1.0/identity/conditionalAccess/namedLocations — return named_locations fixture."""
+    top = parse_top_param(request)
     return get_fixture("named_locations", request, top)
 
 
 @app.get("/v1.0/security/incidents")
-async def get_security_incidents(request: Request, top: int | None = None):
+async def get_security_incidents(request: Request):
     """GET /v1.0/security/incidents — return security_incidents fixture."""
+    top = parse_top_param(request)
     return get_fixture("security_incidents", request, top)
 
 
 @app.get("/v1.0/security/alerts_v2")
-async def get_security_alerts(request: Request, top: int | None = None):
+async def get_security_alerts(request: Request):
     """GET /v1.0/security/alerts_v2 — return security_alerts fixture."""
+    top = parse_top_param(request)
     return get_fixture("security_alerts", request, top)
 
 
 @app.get("/v1.0/security/secureScores")
-async def get_secure_scores(request: Request, top: int | None = None):
+async def get_secure_scores(request: Request):
     """GET /v1.0/security/secureScores — return secure_scores fixture."""
+    top = parse_top_param(request)
     return get_fixture("secure_scores", request, top)
 
 
 @app.get("/v1.0/security/secureScoreControlProfiles")
-async def get_score_control_profiles(request: Request, top: int | None = None):
+async def get_score_control_profiles(request: Request):
     """GET /v1.0/security/secureScoreControlProfiles — return secure_score_control_profiles fixture."""
+    top = parse_top_param(request)
     return get_fixture("secure_score_control_profiles", request, top)
 
 
 # Subtask 3.1.3: Roles, Auth Methods Policy, Audit Logs, and Info Protection Endpoints
 @app.get("/v1.0/directoryRoles")
-async def get_directory_roles(request: Request, top: int | None = None):
+async def get_directory_roles(request: Request):
     """GET /v1.0/directoryRoles — return directory_roles fixture."""
+    top = parse_top_param(request)
     return get_fixture("directory_roles", request, top)
 
 
 @app.get("/v1.0/directoryRoles/{role_id}/members")
-async def get_directory_role_members(role_id: str, request: Request, top: int | None = None):
+async def get_directory_role_members(role_id: str, request: Request):
     """GET /v1.0/directoryRoles/{role_id}/members — return directory_role_members fixture."""
+    top = parse_top_param(request)
     return get_fixture("directory_role_members", request, top)
 
 
 @app.get("/v1.0/roleManagement/directory/roleAssignments")
-async def get_role_assignments(request: Request, top: int | None = None):
+async def get_role_assignments(request: Request):
     """GET /v1.0/roleManagement/directory/roleAssignments — return role_assignments fixture."""
+    top = parse_top_param(request)
     return get_fixture("role_assignments", request, top)
 
 
 @app.get("/v1.0/roleManagement/directory/roleDefinitions")
-async def get_role_definitions(request: Request, top: int | None = None):
+async def get_role_definitions(request: Request):
     """GET /v1.0/roleManagement/directory/roleDefinitions — return role_definitions fixture."""
+    top = parse_top_param(request)
     return get_fixture("role_definitions", request, top)
 
 
 @app.get("/v1.0/roleManagement/directory/roleEligibilitySchedules")
-async def get_role_eligibility_schedules(request: Request, top: int | None = None):
+async def get_role_eligibility_schedules(request: Request):
     """GET /v1.0/roleManagement/directory/roleEligibilitySchedules — return role_eligibility_schedules fixture."""
+    top = parse_top_param(request)
     return get_fixture("role_eligibility_schedules", request, top)
 
 
 @app.get("/v1.0/roleManagement/directory/roleAssignmentSchedules")
-async def get_role_assignment_schedules(request: Request, top: int | None = None):
+async def get_role_assignment_schedules(request: Request):
     """GET /v1.0/roleManagement/directory/roleAssignmentSchedules — return role_assignment_schedules fixture."""
+    top = parse_top_param(request)
     return get_fixture("role_assignment_schedules", request, top)
 
 
@@ -413,20 +451,23 @@ async def get_auth_method_config(method_id: str, request: Request):
 
 
 @app.get("/v1.0/auditLogs/signIns")
-async def get_audit_sign_ins(request: Request, top: int | None = None):
+async def get_audit_sign_ins(request: Request):
     """GET /v1.0/auditLogs/signIns — return audit_sign_ins fixture."""
+    top = parse_top_param(request)
     return get_fixture("audit_sign_ins", request, top)
 
 
 @app.get("/v1.0/auditLogs/directoryAudits")
-async def get_audit_directory(request: Request, top: int | None = None):
+async def get_audit_directory(request: Request):
     """GET /v1.0/auditLogs/directoryAudits — return audit_directory fixture."""
+    top = parse_top_param(request)
     return get_fixture("audit_directory", request, top)
 
 
 @app.get("/v1.0/informationProtection/policy/labels")
-async def get_info_protection_labels(request: Request, top: int | None = None):
+async def get_info_protection_labels(request: Request):
     """GET /v1.0/informationProtection/policy/labels — return information_protection_labels fixture."""
+    top = parse_top_param(request)
     return get_fixture("information_protection_labels", request, top)
 
 
