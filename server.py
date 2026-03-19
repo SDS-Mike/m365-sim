@@ -12,6 +12,7 @@ import asyncio
 import copy
 import json
 import logging
+import re
 import sys
 import uuid
 from contextlib import asynccontextmanager
@@ -213,6 +214,132 @@ def parse_top_param(request: Request) -> int | None:
         return None
 
 
+def _parse_filter_expression(filter_expr: str) -> list[dict] | None:
+    """Parse OData $filter expression into a list of conditions.
+
+    Supports:
+    - eq operator: field eq 'value' or field eq value (string/bool/int)
+    - and/or combinators
+
+    Returns list of dicts: [{"field": str, "value": Any, "operator": "and"|"or"}, ...]
+    Returns None if filter is unparseable.
+    """
+    try:
+        conditions = []
+        # Split by 'and' and 'or' while capturing the operator
+        # Pattern: (field/path) (eq) (value) [(and|or) ...]
+        parts = re.split(r'\s+(and|or)\s+', filter_expr.strip())
+
+        i = 0
+        while i < len(parts):
+            part = parts[i].strip()
+            if not part or part in ('and', 'or'):
+                i += 1
+                continue
+
+            # Parse condition: field eq value
+            # Field can include '/' for nested paths
+            match = re.match(r"(\w+(?:/\w+)*)\s+eq\s+(?:'([^']*)'|(\w+))", part)
+            if not match:
+                return None
+
+            field = match.group(1)
+            string_value = match.group(2)
+            bare_value = match.group(3)
+
+            # Determine value type and convert
+            if string_value is not None:
+                value = string_value
+            elif bare_value == 'true':
+                value = True
+            elif bare_value == 'false':
+                value = False
+            else:
+                try:
+                    value = int(bare_value)
+                except ValueError:
+                    value = bare_value
+
+            # Get operator (next element if present and is and/or)
+            operator = "and"  # default
+            if i + 1 < len(parts) and parts[i + 1] in ('and', 'or'):
+                operator = parts[i + 1]
+
+            conditions.append({"field": field, "value": value, "operator": operator})
+            i += 2 if (i + 1 < len(parts) and parts[i + 1] in ('and', 'or')) else 1
+
+        return conditions if conditions else None
+    except Exception:
+        return None
+
+
+def _evaluate_filter(item: dict, conditions: list[dict]) -> bool:
+    """Evaluate whether an item matches the filter conditions.
+
+    Supports 'and' and 'or' operators. Currently treats all conditions
+    with 'and' as requiring all to match, and 'or' as at least one match.
+    """
+    if not conditions:
+        return True
+
+    # Simple evaluation: apply conditions sequentially with operators
+    # For 'and' operator: all previous must be true and current must be true
+    # For 'or' operator: if any previous was true, keep true; or if current is true
+    result = None
+
+    for i, condition in enumerate(conditions):
+        field = condition["field"]
+        expected_value = condition["value"]
+        operator = condition["operator"]
+
+        # Get field value from item (support nested paths like grantControls/builtInControls)
+        field_parts = field.split('/')
+        item_value = item
+        for part in field_parts:
+            if isinstance(item_value, dict):
+                item_value = item_value.get(part)
+            else:
+                item_value = None
+                break
+
+        # Compare values
+        matches = item_value == expected_value
+
+        # Apply operator logic
+        if i == 0:
+            result = matches
+        else:
+            prev_operator = conditions[i - 1]["operator"]
+            if prev_operator == "and":
+                result = result and matches
+            elif prev_operator == "or":
+                result = result or matches
+
+    return result if result is not None else True
+
+
+def _apply_filter(data: dict, filter_expr: str) -> dict:
+    """Apply OData $filter to fixture data.
+
+    Returns filtered data with the same structure but filtered 'value' array.
+    On parse error, returns unfiltered data with a warning.
+    """
+    if "value" not in data or not isinstance(data["value"], list):
+        return data
+
+    conditions = _parse_filter_expression(filter_expr)
+    if conditions is None:
+        logger.warning(f"Unsupported $filter syntax, returning unfiltered: {filter_expr}")
+        return data
+
+    logger.info(f"Applying $filter: {filter_expr}")
+    filtered_value = [item for item in data["value"] if _evaluate_filter(item, conditions)]
+
+    result = dict(data)
+    result["value"] = filtered_value
+    return result
+
+
 def _get_fixtures_for_request(request: Request) -> dict[str, dict]:
     """Get the fixture dict for this request, respecting X-Mock-Cloud header."""
     override_cloud = request.headers.get("x-mock-cloud")
@@ -225,9 +352,9 @@ def _get_fixtures_for_request(request: Request) -> dict[str, dict]:
 
 
 def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResponse:
-    """Return fixture data with optional $top truncation.
+    """Return fixture data with optional $filter and $top truncation.
 
-    Logs $filter, $select, $expand params if present (does not apply them).
+    $filter is applied; $select and $expand are logged but ignored.
     """
     fixtures = _get_fixtures_for_request(request)
     data = fixtures.get(name)
@@ -243,12 +370,19 @@ def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResp
             },
         )
 
+    result = dict(data)  # shallow copy
+
+    # Apply $filter if present (applied before $top)
+    filter_expr = request.query_params.get("$filter")
+    if filter_expr:
+        result = _apply_filter(result, filter_expr)
+
     # Log ignored query params
-    for param in ("$filter", "$select", "$expand"):
+    for param in ("$select", "$expand"):
         if param in request.query_params:
             logger.info(f"Ignoring query param {param}={request.query_params.get(param)}")
 
-    result = dict(data)  # shallow copy
+    # Apply $top truncation (after filter is applied)
     if top is not None and top >= 0 and "value" in result:
         result["value"] = result["value"][:top]
 
