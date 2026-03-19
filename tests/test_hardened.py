@@ -43,7 +43,7 @@ def mock_server_hardened():
 
     # Start subprocess with hardened scenario
     process = subprocess.Popen(
-        ["python", "server.py", "--scenario", "hardened", "--port", str(port)],
+        ["python3", "server.py", "--scenario", "hardened", "--port", str(port)],
         cwd="/home/mmn/github/m365-sim",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

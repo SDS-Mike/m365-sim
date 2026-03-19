@@ -38,7 +38,7 @@ def mock_server():
 
     # Start subprocess
     process = subprocess.Popen(
-        ["python", "server.py", "--port", str(port)],
+        ["python3", "server.py", "--port", str(port)],
         cwd="/home/mmn/github/m365-sim",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
