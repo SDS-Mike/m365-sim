@@ -298,9 +298,9 @@ class TestStatefulPatchOperations:
             c["id"]: c for c in response.json().get("authenticationMethodConfigurations", [])
         }
 
-        # PATCH fido2
+        # PATCH fido2 (lowercase — must match fixture ID)
         patch_response = httpx.patch(
-            f"{mock_server_stateful}/v1.0/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/Fido2",
+            f"{mock_server_stateful}/v1.0/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/fido2",
             headers=auth_headers,
             json={"state": "enabled"},
         )
@@ -316,9 +316,12 @@ class TestStatefulPatchOperations:
             c["id"]: c for c in response.json().get("authenticationMethodConfigurations", [])
         }
 
+        # Verify fido2 was actually changed
+        assert configs_after["fido2"]["state"] == "enabled", "PATCH should have changed fido2 to enabled"
+
         # Verify all other methods unchanged
         for method_id in configs_before:
-            if method_id == "Fido2":
+            if method_id == "fido2":
                 continue  # Skip the one we patched
             assert configs_after[method_id] == configs_before[method_id], (
                 f"Method {method_id} was changed unexpectedly"

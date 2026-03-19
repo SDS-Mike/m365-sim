@@ -25,15 +25,15 @@ Use the m365-sim-executor agent to execute subtask X.Y.Z
 - [x] Phase 02 — Server Scaffold
 - [x] Phase 03 — Route Table
 - [x] Phase 04 — Greenfield Fixture Set
-- [ ] Phase 05 — Smoke Tests
+- [x] Phase 05 — Smoke Tests
 - [x] Phase 06 — Hardened Fixture Set
-- [ ] Phase 07 — GCC High Scaffold
+- [x] Phase 07 — GCC High Scaffold
 - [x] Phase 08 — TenantBuilder Fluent API
-- [ ] Phase 09 — Stateful Write Operations
-- [ ] Phase 10 — Minimal $filter Engine
+- [x] Phase 09 — Stateful Write Operations
+- [x] Phase 10 — Minimal $filter Engine
 
-**Current**: Phase 09
-**Next**: 9.1.1
+**Current**: All phases complete
+**Status**: MVP + extensions complete
 
 ---
 
