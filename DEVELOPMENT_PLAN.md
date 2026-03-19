@@ -30,8 +30,8 @@ Use the m365-sim-executor agent to execute subtask X.Y.Z
 - [ ] Phase 07 — GCC High Scaffold
 - [ ] Phase 08 — TenantBuilder Fluent API
 
-**Current**: Phase 00
-**Next**: 0.1.1
+**Current**: Phase 01
+**Next**: 1.1.1
 
 ---
 
@@ -65,12 +65,12 @@ Use the m365-sim-executor agent to execute subtask X.Y.Z
 This subtask requires **interactive discussion with the user**. Present each question, discuss tradeoffs, record the decision.
 
 **Deliverables**:
-- [ ] Create `docs/decisions.md` with frontmatter and 5 decision records
-- [ ] Decision 001: Fixture loading strategy — eager vs lazy
-- [ ] Decision 002: `$filter` implementation depth — ignore all vs minimal engine
-- [ ] Decision 003: Stateful write operations — fake responses vs mutable state
-- [ ] Decision 004: Integration test runner — subprocess vs in-process ASGI
-- [ ] Decision 005: TenantBuilder timing — build in MVP vs defer
+- [x] Create `docs/decisions.md` with frontmatter and 5 decision records
+- [x] Decision 001: Fixture loading strategy — eager vs lazy
+- [x] Decision 002: `$filter` implementation depth — ignore all vs minimal engine
+- [x] Decision 003: Stateful write operations — fake responses vs mutable state
+- [x] Decision 004: Integration test runner — subprocess vs in-process ASGI
+- [x] Decision 005: TenantBuilder timing — build in MVP vs defer
 
 **Questions to Present to User**:
 
@@ -205,15 +205,15 @@ Each entry records a design question, the options considered, the resolution, an
 ```
 
 **Success Criteria**:
-- [ ] `docs/decisions.md` exists with all 5 decision records
-- [ ] Each decision has Status: DECIDED (not PENDING)
-- [ ] Each decision has a non-empty Resolution and Rationale
-- [ ] User has confirmed all 5 decisions
+- [x] `docs/decisions.md` exists with all 5 decision records
+- [x] Each decision has Status: DECIDED (not PENDING)
+- [x] Each decision has a non-empty Resolution and Rationale
+- [x] User has confirmed all 5 decisions
 
 **Completion Notes**:
-- **Implementation**: (describe what was done)
-- **Files Created**: docs/decisions.md
-- **Notes**: (record any additional context from the discussion)
+- **Implementation**: Interactive session with user to resolve all 5 design decisions
+- **Files Created**: docs/decisions.md — 101 lines
+- **Notes**: DEC-001: Eager, DEC-002: Ignore filters (curated fixtures), DEC-003: Stateless (hardened = post-deploy), DEC-004: Subprocess, DEC-005: Defer to Phase 08
 
 **Git Commit**:
 ```bash
@@ -224,8 +224,8 @@ git commit -m "docs(decisions): record 5 design decisions [0.1.1]"
 ---
 
 ### Task 0.1 Complete
-- [ ] All 5 decisions resolved and recorded
-- [ ] Git commit:
+- [x] All 5 decisions resolved and recorded
+- [x] Git commit:
   ```bash
   git add docs/decisions.md
   git commit -m "docs(decisions): record 5 design decisions for m365-sim MVP [0.1.1]"
