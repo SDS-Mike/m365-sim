@@ -170,8 +170,7 @@ def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResp
 
     Logs $filter, $select, $expand params if present (does not apply them).
     """
-    cloud = request.headers.get("X-Mock-Cloud") or app.state.cloud
-    fixtures = app.state.fixtures.get(cloud, app.state.fixtures.get(app.state.cloud, {}))
+    fixtures = app.state.fixtures
     data = fixtures.get(name)
 
     if data is None:
@@ -376,8 +375,7 @@ async def get_auth_methods_policy(request: Request):
 async def get_auth_method_config(method_id: str, request: Request):
     """GET /v1.0/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/{method_id}
     — extract and return specific auth method config by id."""
-    cloud = request.headers.get("X-Mock-Cloud") or app.state.cloud
-    fixtures = app.state.fixtures.get(cloud, app.state.fixtures.get(app.state.cloud, {}))
+    fixtures = app.state.fixtures
     data = fixtures.get("auth_methods_policy")
 
     if data is None:
