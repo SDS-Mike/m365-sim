@@ -1503,7 +1503,7 @@ git checkout -b feature/10-1-filter-engine
 ```
 
 **Deliverables**:
-- [ ] Add a `filter_engine` module or section in `server.py` that:
+- [x] Add a `filter_engine` module or section in `server.py` that:
   - Parses simple OData `$filter` expressions supporting:
     - `eq` operator: `field eq 'value'` or `field eq value` (string/bool/int)
     - `and` combinator: `field1 eq 'val1' and field2 eq 'val2'`
@@ -1512,10 +1512,10 @@ git checkout -b feature/10-1-filter-engine
   - Evaluates the parsed filter against each item in the `value` array
   - Returns only items that match the filter
   - Gracefully handles unparseable filters: log a warning and return the full unfiltered result (don't break)
-- [ ] Update `get_fixture()` to apply `$filter` when present instead of just logging it
-- [ ] Keep logging: `logger.info(f"Applying $filter: {filter_expr}")` when a filter is applied
-- [ ] Log a warning for unsupported filter syntax: `logger.warning(f"Unsupported $filter syntax, returning unfiltered: {filter_expr}")`
-- [ ] Common filter patterns that MUST work:
+- [x] Update `get_fixture()` to apply `$filter` when present instead of just logging it
+- [x] Keep logging: `logger.info(f"Applying $filter: {filter_expr}")` when a filter is applied
+- [x] Log a warning for unsupported filter syntax: `logger.warning(f"Unsupported $filter syntax, returning unfiltered: {filter_expr}")`
+- [x] Common filter patterns that MUST work:
   - `$filter=userType eq 'Guest'` on `/v1.0/users`
   - `$filter=userType eq 'Member'` on `/v1.0/users`
   - `$filter=accountEnabled eq true` on `/v1.0/users`
@@ -1534,20 +1534,28 @@ git checkout -b feature/10-1-filter-engine
 - The `or {}` pattern from CLAUDE.md applies: use `(item.get(field) or default)` for nested access
 
 **Success Criteria**:
-- [ ] `$filter=userType eq 'Member'` on `/v1.0/users` returns only Member users
-- [ ] `$filter=userType eq 'Guest'` on `/v1.0/users` returns empty array (no guests in greenfield)
-- [ ] `$filter=appId eq '00000003-0000-0000-c000-000000000000'` on `/v1.0/servicePrincipals` returns only the Microsoft Graph SP
-- [ ] `$filter=state eq 'enabledForReportingButNotEnforced'` on hardened CA policies returns all 8
-- [ ] `$filter=complianceState eq 'compliant'` on hardened managed devices returns all 3
-- [ ] Compound filter: `$filter=userType eq 'Member' and accountEnabled eq true` works
-- [ ] Unparseable filter returns full result with warning log (no error)
-- [ ] `$top` still works in combination with `$filter` (`$filter` applied first, then `$top` truncates)
-- [ ] No TODO/FIXME in server.py
+- [x] `$filter=userType eq 'Member'` on `/v1.0/users` returns only Member users
+- [x] `$filter=userType eq 'Guest'` on `/v1.0/users` returns empty array (no guests in greenfield)
+- [x] `$filter=appId eq '00000003-0000-0000-c000-000000000000'` on `/v1.0/servicePrincipals` returns only the Microsoft Graph SP
+- [x] `$filter=state eq 'enabledForReportingButNotEnforced'` on hardened CA policies returns all 8
+- [x] `$filter=complianceState eq 'compliant'` on hardened managed devices returns all 3
+- [x] Compound filter: `$filter=userType eq 'Member' and accountEnabled eq true` works
+- [x] Unparseable filter returns full result with warning log (no error)
+- [x] `$top` still works in combination with `$filter` (`$filter` applied first, then `$top` truncates)
+- [x] No TODO/FIXME in server.py
 
 **Git Commit**:
 ```bash
 git add -A && git commit -m "feat(filter): minimal OData $filter engine with eq/and/or support [10.1.1]"
 ```
+
+**Completion Notes**:
+- **Implementation**: Regex-based OData $filter parser with eq, and, or operators. Three filter engine functions added to server.py: `_parse_filter_expression()` (parser), `_evaluate_filter()` (evaluator), and `_apply_filter()` (applies filter to fixture data). Handles string, bool, and int value types. Supports nested field access via "/" separator. Graceful degradation for unparseable filters with warning log.
+- **Files Created**: None
+- **Files Modified**:
+  - `server.py` - added 138 lines: import re, three filter functions, updated get_fixture() to apply filter before $top truncation
+- **Tests**: All existing tests still pass (43 tests), no new test file yet
+- **Notes**: Filter is applied before $top truncation, as per spec. Log includes both "Applying $filter" for valid filters and "Unsupported $filter syntax" warning for invalid filters. Nested field access via item.get() chains handles explicit null values correctly.
 
 ---
 
@@ -1557,49 +1565,80 @@ git add -A && git commit -m "feat(filter): minimal OData $filter engine with eq/
 - [x] 10.1.1: OData $filter Parser and Evaluator
 
 **Deliverables**:
-- [ ] Create `tests/test_filter.py` with (uses `mock_server` and `auth_headers` from conftest.py):
-  - `test_filter_users_by_member_type` — `$filter=userType eq 'Member'` returns 2 members
-  - `test_filter_users_by_guest_type` — `$filter=userType eq 'Guest'` returns empty array
-  - `test_filter_users_account_enabled` — `$filter=accountEnabled eq true` filters correctly
-  - `test_filter_service_principals_by_app_id` — `$filter=appId eq '00000003-0000-0000-c000-000000000000'` returns exactly 1 SP
-  - `test_filter_with_top` — `$filter=userType eq 'Member'&$top=1` returns 1 result
-  - `test_filter_compound_and` — `$filter=userType eq 'Member' and accountEnabled eq true` works
-  - `test_filter_unparseable_returns_full` — `$filter=badSyntax!!!` returns full result (graceful degradation)
-  - `test_filter_empty_collection` — filter on empty collection returns empty
-  - `test_filter_no_match` — filter that matches nothing returns empty `value`
-- [ ] Create hardened filter tests (uses `mock_server_hardened` from test_hardened.py or new fixture):
-  - `test_filter_hardened_ca_policies_by_state` — `$filter=state eq 'enabledForReportingButNotEnforced'` returns 8 policies
-  - `test_filter_hardened_compliant_devices` — `$filter=complianceState eq 'compliant'` returns 3 devices
+- [x] Create `tests/test_filter.py` with (uses `mock_server` and `auth_headers` from conftest.py):
+  - [x] `test_filter_users_by_member_type` — `$filter=userType eq 'Member'` returns 2 members
+  - [x] `test_filter_users_by_guest_type` — `$filter=userType eq 'Guest'` returns empty array
+  - [x] `test_filter_users_account_enabled` — `$filter=accountEnabled eq true` filters correctly
+  - [x] `test_filter_service_principals_by_app_id` — `$filter=appId eq '00000003-0000-0000-c000-000000000000'` returns exactly 1 SP
+  - [x] `test_filter_with_top` — `$filter=userType eq 'Member'&$top=1` returns 1 result
+  - [x] `test_filter_compound_and` — `$filter=userType eq 'Member' and accountEnabled eq true` works
+  - [x] `test_filter_unparseable_returns_full` — `$filter=badSyntax!!!` returns full result (graceful degradation)
+  - [x] `test_filter_empty_collection` — filter on empty collection returns empty
+  - [x] `test_filter_no_match` — filter that matches nothing returns empty `value`
+- [x] Create hardened filter tests (uses `mock_server_hardened` from test_hardened.py or new fixture):
+  - [x] `test_filter_hardened_ca_policies_by_state` — `$filter=state eq 'enabledForReportingButNotEnforced'` returns 8 policies
+  - [x] `test_filter_hardened_compliant_devices` — `$filter=complianceState eq 'compliant'` returns 3 devices
 
 **Success Criteria**:
-- [ ] `pytest tests/test_filter.py -v` all green
-- [ ] At least 10 filter-specific tests
-- [ ] `pytest tests/ -v` — ALL tests pass (filter + stateful + existing)
-- [ ] No TODO/FIXME in test files
+- [x] `pytest tests/test_filter.py -v` all green
+- [x] At least 10 filter-specific tests
+- [x] `pytest tests/ -v` — ALL tests pass (filter + stateful + existing)
+- [x] No TODO/FIXME in test files
 
 **Git Commit**:
 ```bash
 git add -A && git commit -m "test(filter): OData $filter engine tests [10.1.2]"
 ```
 
+**Completion Notes**:
+- **Implementation**: Comprehensive test suite covering greenfield and hardened scenarios. Created test_filter.py with 11 tests across 6 test classes: TestFilterGreenfieldUsers (3 tests), TestFilterServicePrincipals (1 test), TestFilterWithTop (1 test), TestCompoundFilters (1 test), TestFilterEdgeCases (3 tests), TestFilterHardenedScenario (2 tests). Includes new mock_server_hardened_filter fixture (separate from test_hardened.py fixture).
+- **Files Created**:
+  - `tests/test_filter.py` - 251 lines, 11 comprehensive filter tests
+- **Files Modified**: None in this subtask
+- **Tests**: 11 new filter tests, all passing. Full suite: 101 tests passing (43 existing + 11 new + 47 other tests from stateful/hardened/query/builder)
+- **Notes**: All required filter patterns work correctly. Tests verify empty collections, no matches, graceful degradation, and compound filters. Hardened tests verify CA policies by state and managed devices by compliance state.
+
 ---
 
 ### Task 10.1 Complete — Squash Merge
-- [ ] All subtasks complete (10.1.1 and 10.1.2)
-- [ ] All tests pass: `pytest tests/ -v`
-- [ ] Push feature branch: `git push -u origin feature/10-1-filter-engine`
-- [ ] Squash merge to main:
+- [x] All subtasks complete (10.1.1 and 10.1.2)
+- [x] All tests pass: `pytest tests/ -v`
+- [x] Push feature branch: `git push -u origin feature/10-1-filter-engine`
+- [x] Squash merge to main:
   ```bash
   git checkout main && git pull origin main
   git merge --squash feature/10-1-filter-engine
   git commit -m "feat: minimal OData $filter engine with eq/and/or support"
   git push origin main
   ```
-- [ ] Clean up:
+- [x] Clean up:
   ```bash
   git branch -d feature/10-1-filter-engine
   git push origin --delete feature/10-1-filter-engine
   ```
+
+**Completion Notes**:
+- **Status**: COMPLETE
+- **All Subtasks**: 10.1.1 (filter parser/evaluator) and 10.1.2 (comprehensive tests) both complete
+- **Test Results**: 101/101 tests passing (11 new filter tests + 90 existing/other tests)
+- **Git**: Squash merged to main (commit acfd478), feature branch deleted
+- **Implementation Summary**:
+  - Regex-based OData $filter parser supporting eq operator with and/or combinators
+  - Handles string, bool, int value types
+  - Supports nested field access via "/" separator
+  - Graceful degradation with warning logs for unparseable filters
+  - Filter applied before $top truncation
+  - Comprehensive test coverage: greenfield single-field, compound, edge cases, hardened scenarios
+- **Code Quality**: No TODO/FIXME in production code or tests
+- **Key Features Validated**:
+  - $filter=userType eq 'Member' — returns 2 members
+  - $filter=userType eq 'Guest' — returns empty (no guests in greenfield)
+  - $filter=appId eq '...' on servicePrincipals — returns 1 Microsoft Graph SP
+  - $filter=state eq 'enabledForReportingButNotEnforced' on hardened CA policies — returns 8
+  - $filter=complianceState eq 'compliant' on hardened devices — returns 3
+  - $filter=userType eq 'Member' and accountEnabled eq true — compound filter works
+  - $filter + $top combined — filter applied first, then truncated
+  - $filter=badSyntax!!! — graceful degradation, full result returned with warning log
 
 ---
 
