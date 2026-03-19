@@ -1,0 +1,5 @@
+{
+  "@odata.context": "https://graph.microsoft.us/v1.0/$metadata#auditLogs/signIns",
+  "_TODO": "Populate with GCC High-specific fixture data",
+  "value": []
+}
