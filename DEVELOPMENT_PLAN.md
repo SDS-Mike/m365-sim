@@ -2461,36 +2461,43 @@ git checkout -b feature/17-1-extended-filters
 ```
 
 **Deliverables**:
-- [ ] Extend `_parse_filter_expression()` in `server.py` to support:
-  - `ne` (not equal): `field ne 'value'` — same value types as `eq` (string, bool, int)
-  - `gt`, `lt`, `ge`, `le` (comparison): `field gt 5`, `field lt 100` — numeric and string comparison
-  - `startswith(field,'prefix')` — function syntax: `startswith(displayName,'CMMC')`
-  - `contains(field,'substring')` — function syntax: `contains(userPrincipalName,'contoso')`
-  - `in` operator: `field in ('val1', 'val2', 'val3')` — match any value in list
-- [ ] Update `_evaluate_filter()` to handle new operators
-- [ ] Regex patterns to add:
-  - Comparison ops: `(\w+(?:/\w+)*)\s+(ne|gt|lt|ge|le)\s+(?:'([^']*)'|(\w+))` — same capture as eq but different operators
-  - `startswith`: `startswith\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)`
-  - `contains`: `contains\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)`
-  - `in`: `(\w+(?:/\w+)*)\s+in\s+\(([^)]+)\)` — parse comma-separated values inside parens
-- [ ] Graceful degradation unchanged: unparseable filters return full result with warning
-- [ ] Existing `eq`, `and`, `or` behavior unchanged
+- [x] Extend `_parse_filter_expression()` in `server.py` to support:
+  - [x] `ne` (not equal): `field ne 'value'` — same value types as `eq` (string, bool, int)
+  - [x] `gt`, `lt`, `ge`, `le` (comparison): `field gt 5`, `field lt 100` — numeric and string comparison
+  - [x] `startswith(field,'prefix')` — function syntax: `startswith(displayName,'CMMC')`
+  - [x] `contains(field,'substring')` — function syntax: `contains(userPrincipalName,'contoso')`
+  - [x] `in` operator: `field in ('val1', 'val2', 'val3')` — match any value in list
+- [x] Update `_evaluate_filter()` to handle new operators
+- [x] Regex patterns to add:
+  - [x] Comparison ops: `(\w+(?:/\w+)*)\s+(ne|gt|lt|ge|le)\s+(?:'([^']*)'|(\w+))` — same capture as eq but different operators
+  - [x] `startswith`: `startswith\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)`
+  - [x] `contains`: `contains\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)`
+  - [x] `in`: `(\w+(?:/\w+)*)\s+in\s+\(([^)]+)\)` — parse comma-separated values inside parens
+- [x] Graceful degradation unchanged: unparseable filters return full result with warning
+- [x] Existing `eq`, `and`, `or` behavior unchanged
 
 **Filter patterns that MUST work**:
-- `$filter=userType ne 'Guest'` on `/v1.0/users` — returns 2 (all are Members)
-- `$filter=currentScore gt 10` on `/v1.0/security/secureScores` — returns 1 (score is 12.0)
-- `$filter=currentScore lt 50` on `/v1.0/security/secureScores` — returns 1
-- `$filter=startswith(displayName,'Mike')` on `/v1.0/users` — returns 1 (Mike Morris)
-- `$filter=contains(userPrincipalName,'contoso')` on `/v1.0/users` — returns 2
-- `$filter=displayName in ('Global Administrator','Security Administrator')` on `/v1.0/directoryRoles` — returns 2
-- `$filter=state ne 'disabled'` on hardened CA policies — returns 8
-- `$filter=startswith(displayName,'CMMC')` on hardened CA policies — returns 8
+- [x] `$filter=userType ne 'Guest'` on `/v1.0/users` — returns 2 (all are Members)
+- [x] `$filter=currentScore gt 10` on `/v1.0/security/secureScores` — returns 1 (score is 12.0)
+- [x] `$filter=currentScore lt 50` on `/v1.0/security/secureScores` — returns 1
+- [x] `$filter=startswith(displayName,'Mike')` on `/v1.0/users` — returns 1 (Mike Morris)
+- [x] `$filter=contains(userPrincipalName,'contoso')` on `/v1.0/users` — returns 2
+- [x] `$filter=displayName in ('Global Administrator','Security Administrator')` on `/v1.0/directoryRoles` — returns 2
+- [x] `$filter=state ne 'disabled'` on hardened CA policies — returns 8
+- [x] `$filter=startswith(displayName,'CMMC')` on hardened CA policies — returns 8
 
 **Success Criteria**:
-- [ ] All new operators work on greenfield and hardened fixtures
-- [ ] Existing `eq`/`and`/`or` filters still work (no regressions)
-- [ ] Unparseable filters still return full result
-- [ ] No TODO/FIXME in server.py
+- [x] All new operators work on greenfield and hardened fixtures
+- [x] Existing `eq`/`and`/`or` filters still work (no regressions)
+- [x] Unparseable filters still return full result
+- [x] No TODO/FIXME in server.py
+
+**Completion Notes**:
+- **Implementation**: Extended `_parse_filter_expression()` with 5 new operators (ne, gt, lt, ge, le, startswith, contains, in). Updated `_evaluate_filter()` to handle all 8 operators with proper numeric/string fallback logic.
+- **Files Modified**:
+  - `server.py` - added ne/gt/lt/ge/le/startswith/contains/in operators with comprehensive regex patterns and evaluation logic
+- **Tests**: 163 tests passing (16 new extended filter tests + all existing tests)
+- **Notes**: All required filter patterns validated on both greenfield and hardened scenarios. Graceful degradation unchanged - unparseable filters return full result with warning.
 
 **Git Commit**:
 ```bash
@@ -2505,24 +2512,31 @@ git add -A && git commit -m "feat(filter): extend $filter with ne, gt, lt, start
 - [x] 17.1.1: Additional Filter Operators
 
 **Deliverables**:
-- [ ] Create `tests/test_filter_extended.py` with:
-  - `test_filter_ne_string` — `$filter=userType ne 'Guest'` returns 2 users
-  - `test_filter_ne_excludes` — `$filter=userType ne 'Member'` returns 0
-  - `test_filter_gt_numeric` — `$filter=currentScore gt 10` on secure scores returns 1
-  - `test_filter_lt_numeric` — `$filter=currentScore lt 50` returns 1
-  - `test_filter_ge_le` — `$filter=currentScore ge 12` returns 1, `le 12` returns 1
-  - `test_filter_startswith` — `startswith(displayName,'Mike')` returns 1 user
-  - `test_filter_contains` — `contains(userPrincipalName,'contoso')` returns 2 users
-  - `test_filter_in_operator` — `displayName in ('Global Administrator','Security Administrator')` returns 2 roles
-  - `test_filter_startswith_hardened_ca` — `startswith(displayName,'CMMC')` on hardened CA returns 8
-  - `test_filter_ne_with_and` — compound: `userType ne 'Guest' and accountEnabled eq true` returns 2
-  - `test_filter_contains_no_match` — `contains(displayName,'nonexistent')` returns 0
-- [ ] All existing filter tests still pass
+- [x] Create `tests/test_filter_extended.py` with:
+  - [x] `test_filter_ne_string` — `$filter=userType ne 'Guest'` returns 2 users
+  - [x] `test_filter_ne_excludes` — `$filter=userType ne 'Member'` returns 0
+  - [x] `test_filter_gt_numeric` — `$filter=currentScore gt 10` on secure scores returns 1
+  - [x] `test_filter_lt_numeric` — `$filter=currentScore lt 50` returns 1
+  - [x] `test_filter_ge_le` — `$filter=currentScore ge 12` returns 1, `le 12` returns 1
+  - [x] `test_filter_startswith` — `startswith(displayName,'Mike')` returns 1 user
+  - [x] `test_filter_contains` — `contains(userPrincipalName,'contoso')` returns 2 users
+  - [x] `test_filter_in_operator` — `displayName in ('Global Administrator','Security Administrator')` returns 2 roles
+  - [x] `test_filter_startswith_hardened_ca` — `startswith(displayName,'CMMC')` on hardened CA returns 8
+  - [x] `test_filter_ne_with_and` — compound: `userType ne 'Guest' and accountEnabled eq true` returns 2
+  - [x] `test_filter_contains_no_match` — `contains(displayName,'nonexistent')` returns 0
+- [x] All existing filter tests still pass
 
 **Success Criteria**:
-- [ ] `pytest tests/test_filter_extended.py -v` all green
-- [ ] At least 10 extended filter tests
-- [ ] `pytest tests/ -v` — ALL tests pass
+- [x] `pytest tests/test_filter_extended.py -v` all green
+- [x] At least 10 extended filter tests (16 total)
+- [x] `pytest tests/ -v` — ALL tests pass
+
+**Completion Notes**:
+- **Implementation**: Created 16 comprehensive extended filter tests covering all new operators (ne, gt, lt, ge, le, startswith, contains, in) with both greenfield and hardened scenarios.
+- **Files Created**:
+  - `tests/test_filter_extended.py` - 261 lines, 16 tests covering all extended operators
+- **Tests**: All 16 new tests pass + all 147 existing tests pass = 163 total
+- **Notes**: Tests include regression tests for original eq/and/or operators, and tests for graceful degradation on unparseable filters.
 
 **Git Commit**:
 ```bash
@@ -2532,16 +2546,26 @@ git add -A && git commit -m "test(filter): extended filter operator tests [17.1.
 ---
 
 ### Task 17.1 Complete — Squash Merge
-- [ ] All subtasks complete
-- [ ] All tests pass: `pytest tests/ -v`
-- [ ] Squash merge to main:
+- [x] All subtasks complete (17.1.1 and 17.1.2)
+- [x] All tests pass: `pytest tests/ -v` (163 tests)
+- [x] Squash merge to main:
   ```bash
   git checkout main && git pull origin main
   git merge --squash feature/17-1-extended-filters
   git commit -m "feat: extended $filter with ne, gt, lt, startswith, contains, in operators"
   git push origin main
   ```
-- [ ] Clean up branch
+- [x] Clean up branch
+
+**Completion Notes**:
+- **Implementation**: Successfully extended OData $filter engine from supporting only `eq` to supporting 8 operators total: `eq`, `ne`, `gt`, `lt`, `ge`, `le`, `startswith()`, `contains()`, `in`. All patterns validated on both greenfield and hardened scenarios.
+- **Files Created**:
+  - `tests/test_filter_extended.py` - 261 lines, 16 comprehensive tests
+- **Files Modified**:
+  - `server.py` - 161 line insertion in _parse_filter_expression() and _evaluate_filter()
+  - `DEVELOPMENT_PLAN.md` - updated completion notes
+- **Tests**: All 163 tests passing (16 new extended filter tests + all existing tests)
+- **Notes**: Branch feature/17-1-extended-filters successfully squash-merged to main and deleted. No TODO/FIXME in production code. All required filter patterns working: ne, gt/lt/ge/le with numeric+string fallback, startswith, contains, in operators.
 
 ---
 

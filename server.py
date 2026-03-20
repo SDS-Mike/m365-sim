@@ -266,15 +266,20 @@ def _parse_filter_expression(filter_expr: str) -> list[dict] | None:
 
     Supports:
     - eq operator: field eq 'value' or field eq value (string/bool/int)
+    - ne operator: field ne 'value' (not equal)
+    - gt, lt, ge, le operators: field gt 5, field lt 100 (numeric/string comparison)
+    - startswith: startswith(field,'prefix')
+    - contains: contains(field,'substring')
+    - in operator: field in ('val1', 'val2', 'val3')
     - and/or combinators
 
-    Returns list of dicts: [{"field": str, "value": Any, "operator": "and"|"or"}, ...]
+    Returns list of dicts: [{"field": str, "value": Any, "filter_op": str, "operator": "and"|"or"}, ...]
     Returns None if filter is unparseable.
     """
     try:
         conditions = []
         # Split by 'and' and 'or' while capturing the operator
-        # Pattern: (field/path) (eq) (value) [(and|or) ...]
+        # Pattern: (field/path) (op) (value) [(and|or) ...]
         parts = re.split(r'\s+(and|or)\s+', filter_expr.strip())
 
         i = 0
@@ -284,35 +289,94 @@ def _parse_filter_expression(filter_expr: str) -> list[dict] | None:
                 i += 1
                 continue
 
-            # Parse condition: field eq value
-            # Field can include '/' for nested paths
-            match = re.match(r"(\w+(?:/\w+)*)\s+eq\s+(?:'([^']*)'|(\w+))", part)
+            filter_op = None
+            field = None
+            value = None
+
+            # Try startswith function: startswith(field,'value')
+            match = re.match(r"startswith\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)", part)
+            if match:
+                filter_op = "startswith"
+                field = match.group(1)
+                value = match.group(2)
+
+            # Try contains function: contains(field,'value')
+            if not match:
+                match = re.match(r"contains\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)", part)
+                if match:
+                    filter_op = "contains"
+                    field = match.group(1)
+                    value = match.group(2)
+
+            # Try in operator: field in ('val1','val2',...)
+            if not match:
+                match = re.match(r"(\w+(?:/\w+)*)\s+in\s+\(([^)]+)\)", part)
+                if match:
+                    filter_op = "in"
+                    field = match.group(1)
+                    # Parse comma-separated quoted values
+                    values_str = match.group(2)
+                    values = re.findall(r"'([^']*)'", values_str)
+                    value = values
+
+            # Try comparison operators: ne, gt, lt, ge, le
+            if not match:
+                match = re.match(r"(\w+(?:/\w+)*)\s+(ne|gt|lt|ge|le)\s+(?:'([^']*)'|(\w+))", part)
+                if match:
+                    filter_op = match.group(2)
+                    field = match.group(1)
+                    string_value = match.group(3)
+                    bare_value = match.group(4)
+
+                    # Determine value type and convert
+                    if string_value is not None:
+                        value = string_value
+                    elif bare_value == 'true':
+                        value = True
+                    elif bare_value == 'false':
+                        value = False
+                    else:
+                        try:
+                            value = float(bare_value)
+                        except ValueError:
+                            value = bare_value
+
+            # Try eq operator (original): field eq value
+            if not match:
+                match = re.match(r"(\w+(?:/\w+)*)\s+eq\s+(?:'([^']*)'|(\w+))", part)
+                if match:
+                    filter_op = "eq"
+                    field = match.group(1)
+                    string_value = match.group(2)
+                    bare_value = match.group(3)
+
+                    # Determine value type and convert
+                    if string_value is not None:
+                        value = string_value
+                    elif bare_value == 'true':
+                        value = True
+                    elif bare_value == 'false':
+                        value = False
+                    else:
+                        try:
+                            value = int(bare_value)
+                        except ValueError:
+                            value = bare_value
+
             if not match:
                 return None
-
-            field = match.group(1)
-            string_value = match.group(2)
-            bare_value = match.group(3)
-
-            # Determine value type and convert
-            if string_value is not None:
-                value = string_value
-            elif bare_value == 'true':
-                value = True
-            elif bare_value == 'false':
-                value = False
-            else:
-                try:
-                    value = int(bare_value)
-                except ValueError:
-                    value = bare_value
 
             # Get operator (next element if present and is and/or)
             operator = "and"  # default
             if i + 1 < len(parts) and parts[i + 1] in ('and', 'or'):
                 operator = parts[i + 1]
 
-            conditions.append({"field": field, "value": value, "operator": operator})
+            conditions.append({
+                "field": field,
+                "value": value,
+                "filter_op": filter_op,
+                "operator": operator
+            })
             i += 2 if (i + 1 < len(parts) and parts[i + 1] in ('and', 'or')) else 1
 
         return conditions if conditions else None
@@ -323,20 +387,26 @@ def _parse_filter_expression(filter_expr: str) -> list[dict] | None:
 def _evaluate_filter(item: dict, conditions: list[dict]) -> bool:
     """Evaluate whether an item matches the filter conditions.
 
-    Supports 'and' and 'or' operators. Currently treats all conditions
-    with 'and' as requiring all to match, and 'or' as at least one match.
+    Supports:
+    - eq: equality
+    - ne: not equal
+    - gt, lt, ge, le: numeric and string comparison
+    - startswith: string prefix match
+    - contains: substring match
+    - in: value in list
+    - and/or operators for combining conditions
+
+    Returns True if item matches all conditions, False otherwise.
     """
     if not conditions:
         return True
 
-    # Simple evaluation: apply conditions sequentially with operators
-    # For 'and' operator: all previous must be true and current must be true
-    # For 'or' operator: if any previous was true, keep true; or if current is true
     result = None
 
     for i, condition in enumerate(conditions):
         field = condition["field"]
         expected_value = condition["value"]
+        filter_op = condition["filter_op"]
         operator = condition["operator"]
 
         # Get field value from item (support nested paths like grantControls/builtInControls)
@@ -349,8 +419,69 @@ def _evaluate_filter(item: dict, conditions: list[dict]) -> bool:
                 item_value = None
                 break
 
-        # Compare values
-        matches = item_value == expected_value
+        # Evaluate condition based on filter operator
+        matches = False
+
+        if filter_op == "eq":
+            matches = item_value == expected_value
+
+        elif filter_op == "ne":
+            matches = item_value != expected_value
+
+        elif filter_op in ("gt", "lt", "ge", "le"):
+            # Numeric and string comparison
+            if item_value is not None:
+                try:
+                    # Try numeric comparison first
+                    item_num = float(item_value) if isinstance(item_value, (int, float, str)) else None
+                    expected_num = float(expected_value) if isinstance(expected_value, (int, float, str)) else None
+
+                    if item_num is not None and expected_num is not None:
+                        if filter_op == "gt":
+                            matches = item_num > expected_num
+                        elif filter_op == "lt":
+                            matches = item_num < expected_num
+                        elif filter_op == "ge":
+                            matches = item_num >= expected_num
+                        elif filter_op == "le":
+                            matches = item_num <= expected_num
+                    else:
+                        # Fall back to string comparison
+                        item_str = str(item_value)
+                        expected_str = str(expected_value)
+                        if filter_op == "gt":
+                            matches = item_str > expected_str
+                        elif filter_op == "lt":
+                            matches = item_str < expected_str
+                        elif filter_op == "ge":
+                            matches = item_str >= expected_str
+                        elif filter_op == "le":
+                            matches = item_str <= expected_str
+                except (ValueError, TypeError):
+                    # Fall back to string comparison
+                    item_str = str(item_value)
+                    expected_str = str(expected_value)
+                    if filter_op == "gt":
+                        matches = item_str > expected_str
+                    elif filter_op == "lt":
+                        matches = item_str < expected_str
+                    elif filter_op == "ge":
+                        matches = item_str >= expected_str
+                    elif filter_op == "le":
+                        matches = item_str <= expected_str
+
+        elif filter_op == "startswith":
+            if item_value is not None:
+                matches = str(item_value).startswith(str(expected_value))
+
+        elif filter_op == "contains":
+            if item_value is not None:
+                matches = str(expected_value) in str(item_value)
+
+        elif filter_op == "in":
+            # expected_value is a list
+            if item_value is not None:
+                matches = item_value in expected_value
 
         # Apply operator logic
         if i == 0:
