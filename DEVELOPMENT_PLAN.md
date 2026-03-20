@@ -34,11 +34,17 @@ Use the m365-sim-executor agent to execute subtask X.Y.Z
 - [x] Phase 11 — Partial Scenario
 - [x] Phase 12 — Commercial E5 Cloud Target
 - [x] Phase 13 — Hot-Reload Fixtures
-- [ ] Phase 14 — Docker Packaging
-- [ ] Phase 15 — OSCAL Component Definition
+- [x] Phase 14 — Docker Packaging
+- [x] Phase 15 — OSCAL Component Definition
+- [x] Phase 16 — GCC High Fixture Population
+- [ ] Phase 17 — Extended $filter Operators
+- [ ] Phase 18 — $expand Support
+- [ ] Phase 19 — GCC High Hardened and Partial Scenarios
+- [ ] Phase 20 — Commercial E5 Hardened and Partial Scenarios
+- [ ] Phase 21 — Beta API Endpoints
 
-**Current**: Phase 11
-**Next**: 11.1.1
+**Current**: Phase 17
+**Next**: 17.1.1
 
 ---
 
@@ -2431,6 +2437,410 @@ git add -A && git commit -m "test(gcc-high): GCC High fixture tests [16.1.3]"
   - `scenarios/gcc-high/greenfield/*.json` - 29 fixtures, all with real data, no _TODO fields
 - **Tests**: 147 tests passing (12 new GCC High tests + all existing tests)
 - **Notes**: All fixtures validated with JSON schema validation. GCC High cloud environment correctly configured with microsoft.us domain and Federal tenant identity. Branch squash-merged and pushed to main.
+
+---
+
+## Phase 17: Extended $filter Operators
+
+**Goal**: Extend the OData $filter engine beyond `eq` to support `ne`, `gt`, `lt`, `ge`, `le`, `startswith()`, `contains()`, and `in` operators. Makes the mock realistic enough for consumers that use rich filters.
+**Duration**: 1 session
+
+### Task 17.1: Extended Filter Operators
+
+**Git**: Create branch `feature/17-1-extended-filters` when starting first subtask.
+
+**Subtask 17.1.1: Additional Filter Operators (Single Session)**
+
+**Prerequisites**:
+- [x] 10.1.2: Filter Engine Tests
+
+**Git Start**:
+```bash
+git checkout main && git pull origin main
+git checkout -b feature/17-1-extended-filters
+```
+
+**Deliverables**:
+- [ ] Extend `_parse_filter_expression()` in `server.py` to support:
+  - `ne` (not equal): `field ne 'value'` — same value types as `eq` (string, bool, int)
+  - `gt`, `lt`, `ge`, `le` (comparison): `field gt 5`, `field lt 100` — numeric and string comparison
+  - `startswith(field,'prefix')` — function syntax: `startswith(displayName,'CMMC')`
+  - `contains(field,'substring')` — function syntax: `contains(userPrincipalName,'contoso')`
+  - `in` operator: `field in ('val1', 'val2', 'val3')` — match any value in list
+- [ ] Update `_evaluate_filter()` to handle new operators
+- [ ] Regex patterns to add:
+  - Comparison ops: `(\w+(?:/\w+)*)\s+(ne|gt|lt|ge|le)\s+(?:'([^']*)'|(\w+))` — same capture as eq but different operators
+  - `startswith`: `startswith\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)`
+  - `contains`: `contains\((\w+(?:/\w+)*)\s*,\s*'([^']*)'\)`
+  - `in`: `(\w+(?:/\w+)*)\s+in\s+\(([^)]+)\)` — parse comma-separated values inside parens
+- [ ] Graceful degradation unchanged: unparseable filters return full result with warning
+- [ ] Existing `eq`, `and`, `or` behavior unchanged
+
+**Filter patterns that MUST work**:
+- `$filter=userType ne 'Guest'` on `/v1.0/users` — returns 2 (all are Members)
+- `$filter=currentScore gt 10` on `/v1.0/security/secureScores` — returns 1 (score is 12.0)
+- `$filter=currentScore lt 50` on `/v1.0/security/secureScores` — returns 1
+- `$filter=startswith(displayName,'Mike')` on `/v1.0/users` — returns 1 (Mike Morris)
+- `$filter=contains(userPrincipalName,'contoso')` on `/v1.0/users` — returns 2
+- `$filter=displayName in ('Global Administrator','Security Administrator')` on `/v1.0/directoryRoles` — returns 2
+- `$filter=state ne 'disabled'` on hardened CA policies — returns 8
+- `$filter=startswith(displayName,'CMMC')` on hardened CA policies — returns 8
+
+**Success Criteria**:
+- [ ] All new operators work on greenfield and hardened fixtures
+- [ ] Existing `eq`/`and`/`or` filters still work (no regressions)
+- [ ] Unparseable filters still return full result
+- [ ] No TODO/FIXME in server.py
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "feat(filter): extend $filter with ne, gt, lt, startswith, contains, in operators [17.1.1]"
+```
+
+---
+
+**Subtask 17.1.2: Extended Filter Tests (Single Session)**
+
+**Prerequisites**:
+- [x] 17.1.1: Additional Filter Operators
+
+**Deliverables**:
+- [ ] Create `tests/test_filter_extended.py` with:
+  - `test_filter_ne_string` — `$filter=userType ne 'Guest'` returns 2 users
+  - `test_filter_ne_excludes` — `$filter=userType ne 'Member'` returns 0
+  - `test_filter_gt_numeric` — `$filter=currentScore gt 10` on secure scores returns 1
+  - `test_filter_lt_numeric` — `$filter=currentScore lt 50` returns 1
+  - `test_filter_ge_le` — `$filter=currentScore ge 12` returns 1, `le 12` returns 1
+  - `test_filter_startswith` — `startswith(displayName,'Mike')` returns 1 user
+  - `test_filter_contains` — `contains(userPrincipalName,'contoso')` returns 2 users
+  - `test_filter_in_operator` — `displayName in ('Global Administrator','Security Administrator')` returns 2 roles
+  - `test_filter_startswith_hardened_ca` — `startswith(displayName,'CMMC')` on hardened CA returns 8
+  - `test_filter_ne_with_and` — compound: `userType ne 'Guest' and accountEnabled eq true` returns 2
+  - `test_filter_contains_no_match` — `contains(displayName,'nonexistent')` returns 0
+- [ ] All existing filter tests still pass
+
+**Success Criteria**:
+- [ ] `pytest tests/test_filter_extended.py -v` all green
+- [ ] At least 10 extended filter tests
+- [ ] `pytest tests/ -v` — ALL tests pass
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "test(filter): extended filter operator tests [17.1.2]"
+```
+
+---
+
+### Task 17.1 Complete — Squash Merge
+- [ ] All subtasks complete
+- [ ] All tests pass: `pytest tests/ -v`
+- [ ] Squash merge to main:
+  ```bash
+  git checkout main && git pull origin main
+  git merge --squash feature/17-1-extended-filters
+  git commit -m "feat: extended $filter with ne, gt, lt, startswith, contains, in operators"
+  git push origin main
+  ```
+- [ ] Clean up branch
+
+---
+
+## Phase 18: $expand Support
+
+**Goal**: Implement `$expand` query parameter to inline related resources in responses. Enables consumers that use `/users?$expand=memberOf` or `/identity/conditionalAccess/policies?$expand=*` patterns.
+**Duration**: 1 session
+
+### Task 18.1: Expand Engine
+
+**Git**: Create branch `feature/18-1-expand` when starting first subtask.
+
+**Subtask 18.1.1: $expand Implementation (Single Session)**
+
+**Prerequisites**:
+- [x] 17.1.2: Extended Filter Tests
+
+**Git Start**:
+```bash
+git checkout main && git pull origin main
+git checkout -b feature/18-1-expand
+```
+
+**Deliverables**:
+- [ ] Add an expand mapping dict in `server.py` that defines which related resources can be expanded for each fixture:
+  ```python
+  EXPAND_MAP: dict[str, dict[str, str]] = {
+      "users": {
+          "memberOf": "groups",
+          "authentication": "me_auth_methods",
+      },
+      "directory_roles": {
+          "members": "directory_role_members",
+      },
+      "organization": {
+          "subscriptions": None,
+      },
+  }
+  ```
+- [ ] Update `get_fixture()` to process `$expand` parameter:
+  - Parse comma-separated expand fields: `$expand=memberOf,authentication`
+  - For each expand field, look up the related fixture in `EXPAND_MAP`
+  - If found, add the related data as a nested property on each item in the `value` array
+  - If the expand target is a collection fixture, add its `value` array as the property
+  - If not found or not supported, log warning and skip (don't error)
+  - `$expand=*` expands all known relations for that fixture
+- [ ] Handle singleton endpoints (like `/me`): expand adds the related data directly to the object
+- [ ] Expansion happens after `$filter` but before `$top`
+- [ ] Log: `logger.info(f"Applying $expand: {expand_fields}")` when expand is applied
+
+**Success Criteria**:
+- [ ] `/v1.0/users?$expand=memberOf` returns users with nested `memberOf` property
+- [ ] `/v1.0/me?$expand=authentication` returns me with nested `authentication` property
+- [ ] `$expand=*` works for endpoints with defined relations
+- [ ] Unknown expand fields are ignored gracefully
+- [ ] `$filter` + `$expand` + `$top` work together in correct order
+- [ ] No TODO/FIXME in server.py
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "feat(expand): $expand support for nested resource inlining [18.1.1]"
+```
+
+---
+
+**Subtask 18.1.2: $expand Tests (Single Session)**
+
+**Prerequisites**:
+- [x] 18.1.1: $expand Implementation
+
+**Deliverables**:
+- [ ] Create `tests/test_expand.py` with:
+  - `test_expand_users_memberof` — `/users?$expand=memberOf` returns users with `memberOf` key
+  - `test_expand_me_authentication` — `/me?$expand=authentication` returns me with `authentication` key
+  - `test_expand_directory_roles_members` — `/directoryRoles?$expand=members` adds `members` to each role
+  - `test_expand_wildcard` — `/users?$expand=*` expands all known relations
+  - `test_expand_unknown_field_graceful` — `/users?$expand=nonexistent` returns normal data, no error
+  - `test_expand_with_filter` — `/users?$expand=memberOf&$filter=userType eq 'Member'` combines both
+  - `test_expand_with_top` — `/users?$expand=memberOf&$top=1` returns 1 user with expand
+  - `test_expand_empty_relation` — expanding a relation that maps to empty fixture returns empty array
+- [ ] All existing tests still pass
+
+**Success Criteria**:
+- [ ] `pytest tests/test_expand.py -v` all green
+- [ ] At least 8 expand tests
+- [ ] `pytest tests/ -v` — ALL tests pass
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "test(expand): $expand query parameter tests [18.1.2]"
+```
+
+---
+
+### Task 18.1 Complete — Squash Merge
+- [ ] All subtasks complete
+- [ ] All tests pass: `pytest tests/ -v`
+- [ ] Squash merge to main:
+  ```bash
+  git checkout main && git pull origin main
+  git merge --squash feature/18-1-expand
+  git commit -m "feat: $expand support for inline related resource expansion"
+  git push origin main
+  ```
+- [ ] Clean up branch
+
+---
+
+## Phase 19: GCC High Hardened and Partial Scenarios
+
+**Goal**: Create hardened and partial fixture sets for GCC High sovereign cloud. Mirrors GCC Moderate hardened/partial but with `graph.microsoft.us` URLs and `contoso-defense.us` domain.
+**Duration**: 1 session
+
+### Task 19.1: GCC High Scenario Fixtures
+
+**Git**: Create branch `feature/19-1-gcc-high-scenarios` when starting first subtask.
+
+**Subtask 19.1.1: GCC High Hardened Fixtures (Single Session)**
+
+**Prerequisites**:
+- [x] 18.1.2: $expand Tests
+
+**Git Start**:
+```bash
+git checkout main && git pull origin main
+git checkout -b feature/19-1-gcc-high-scenarios
+```
+
+**Deliverables**:
+- [ ] Create `scenarios/gcc-high/hardened/` with 6 fixtures: CA policies (8, report-only), auth methods (3 enabled), me_auth_methods (FIDO2), managed devices (3 compliant), compliance policies (3), device configs (2)
+- [ ] All use `https://graph.microsoft.us/v1.0` in `@odata.context`
+- [ ] Verify `python server.py --cloud gcc-high --scenario hardened` starts
+
+**Success Criteria**:
+- [ ] 6 hardened fixtures, 8 report-only CA policies, server starts
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "feat(gcc-high): hardened scenario fixtures [19.1.1]"
+```
+
+---
+
+**Subtask 19.1.2: GCC High Partial Fixtures (Single Session)**
+
+**Prerequisites**:
+- [x] 19.1.1: GCC High Hardened Fixtures
+
+**Deliverables**:
+- [ ] Create `scenarios/gcc-high/partial/` with 5 fixtures: 3 CA policies, 1 auth method enabled, 1 device, 1 compliance policy, no FIDO2
+
+**Success Criteria**:
+- [ ] 5 partial fixtures, server starts with `--cloud gcc-high --scenario partial`
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "feat(gcc-high): partial scenario fixtures [19.1.2]"
+```
+
+---
+
+**Subtask 19.1.3: GCC High Scenario Tests (Single Session)**
+
+**Prerequisites**:
+- [x] 19.1.2: GCC High Partial Fixtures
+
+**Deliverables**:
+- [ ] Create `tests/test_gcc_high_scenarios.py` with 10+ tests (5 hardened, 5 partial, 1 URL check)
+
+**Success Criteria**:
+- [ ] `pytest tests/ -v` — ALL tests pass
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "test(gcc-high): hardened and partial scenario tests [19.1.3]"
+```
+
+---
+
+### Task 19.1 Complete — Squash Merge
+- [ ] Squash merge to main, push, clean up
+
+---
+
+## Phase 20: Commercial E5 Hardened and Partial Scenarios
+
+**Goal**: Create hardened and partial fixture sets for Commercial E5 with `contoso.com` domain.
+**Duration**: 1 session
+
+### Task 20.1: Commercial E5 Scenario Fixtures
+
+**Git**: Create branch `feature/20-1-e5-scenarios` when starting first subtask.
+
+**Subtask 20.1.1: Commercial E5 Hardened and Partial Fixtures (Single Session)**
+
+**Prerequisites**:
+- [x] 19.1.3: GCC High Scenario Tests
+
+**Git Start**:
+```bash
+git checkout main && git pull origin main
+git checkout -b feature/20-1-e5-scenarios
+```
+
+**Deliverables**:
+- [ ] Create `scenarios/commercial-e5/hardened/` with 6 fixtures and `scenarios/commercial-e5/partial/` with 5 fixtures
+- [ ] All use `graph.microsoft.com` in `@odata.context`
+- [ ] Both scenarios inherit E5 greenfield for unchanged endpoints
+
+**Success Criteria**:
+- [ ] Server starts with both `--cloud commercial-e5 --scenario hardened` and `--scenario partial`
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "feat(commercial-e5): hardened and partial scenario fixtures [20.1.1]"
+```
+
+---
+
+**Subtask 20.1.2: Commercial E5 Scenario Tests (Single Session)**
+
+**Prerequisites**:
+- [x] 20.1.1: Commercial E5 Hardened and Partial Fixtures
+
+**Deliverables**:
+- [ ] Create `tests/test_commercial_e5_scenarios.py` with 10+ tests
+
+**Success Criteria**:
+- [ ] `pytest tests/ -v` — ALL tests pass
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "test(commercial-e5): hardened and partial scenario tests [20.1.2]"
+```
+
+---
+
+### Task 20.1 Complete — Squash Merge
+- [ ] Squash merge to main, push, clean up
+
+---
+
+## Phase 21: Beta API Endpoints
+
+**Goal**: Add `/beta/` route prefix mirroring all `/v1.0/` endpoints with `@odata.context` URL rewriting.
+**Duration**: 1 session
+
+### Task 21.1: Beta Routes
+
+**Git**: Create branch `feature/21-1-beta-endpoints` when starting first subtask.
+
+**Subtask 21.1.1: Beta Route Mirror (Single Session)**
+
+**Prerequisites**:
+- [x] 20.1.2: Commercial E5 Scenario Tests
+
+**Git Start**:
+```bash
+git checkout main && git pull origin main
+git checkout -b feature/21-1-beta-endpoints
+```
+
+**Deliverables**:
+- [ ] Add `/beta/{path:path}` catch-all route that maps to v1.0 fixtures with context URL rewriting (`v1.0` → `beta`)
+- [ ] Supports `$top`, `$filter`, `$expand`, POST/PATCH
+- [ ] Works with all 3 cloud targets
+- [ ] `/health` unchanged
+
+**Success Criteria**:
+- [ ] `/beta/users` returns users with `beta` in context URL
+- [ ] All v1.0 tests still pass
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "feat(beta): /beta/ route mirror with context URL rewriting [21.1.1]"
+```
+
+---
+
+**Subtask 21.1.2: Beta Endpoint Tests (Single Session)**
+
+**Prerequisites**:
+- [x] 21.1.1: Beta Route Mirror
+
+**Deliverables**:
+- [ ] Create `tests/test_beta.py` with 10+ tests covering GET, POST, auth, $filter, $top, context URL, GCC High
+
+**Success Criteria**:
+- [ ] `pytest tests/ -v` — ALL tests pass
+
+**Git Commit**:
+```bash
+git add -A && git commit -m "test(beta): /beta/ endpoint mirror tests [21.1.2]"
+```
+
+---
+
+### Task 21.1 Complete — Squash Merge
+- [ ] Squash merge to main, push, clean up
 
 ---
 
