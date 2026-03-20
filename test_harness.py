@@ -3,17 +3,24 @@
 m365-sim Test Harness — Graph API Client Simulator
 
 Simulates a CMMC compliance assessment tool making real Microsoft Graph API
-calls against the mock server. Tests three workflows:
+calls against the mock server. Tests nine workflows:
 
-1. ASSESS greenfield — fresh tenant, expect bad posture
-2. ASSESS hardened   — post-remediation, expect good posture
-3. DEPLOY            — write operations (POST CA policies, PATCH auth methods)
+1. ASSESS           — greenfield + hardened tenant posture
+2. DEPLOY           — stateless write operations + error sim
+3. STATEFUL         — deploy-then-assess with _reset
+4. FILTER           — OData $filter engine (eq, compound, etc.)
+5. CLOUD            — GCC High + Commercial E5 cloud targets
+6. MOCK-CLOUD       — X-Mock-Cloud header override
+7. EXTENDED-FILTER  — ne, gt, lt, ge, le, startswith, contains, or
+8. PARTIAL          — mid-deployment scenario posture
+9. AUTH             — Bearer-only enforcement + error sim edge cases
 
 Usage:
-    python test_harness.py                    # run all workflows
-    python test_harness.py --workflow assess   # assess both scenarios
-    python test_harness.py --workflow deploy   # deploy operations only
-    python test_harness.py --port 9999        # custom port
+    python test_harness.py                             # run all workflows
+    python test_harness.py --workflow assess            # assess both scenarios
+    python test_harness.py --workflow cloud             # cloud targets only
+    python test_harness.py --workflow extended-filter   # extended filters only
+    python test_harness.py --port 9999                 # custom port
 """
 
 import argparse
@@ -57,8 +64,10 @@ def get_free_port() -> int:
         return s.getsockname()[1]
 
 
-def start_server(port: int, scenario: str = "greenfield", stateful: bool = False) -> subprocess.Popen:
-    cmd = [sys.executable, "server.py", "--port", str(port), "--scenario", scenario]
+def start_server(port: int, scenario: str = "greenfield", stateful: bool = False,
+                  cloud: str = "gcc-moderate") -> subprocess.Popen:
+    cmd = [sys.executable, "server.py", "--port", str(port), "--scenario", scenario,
+           "--cloud", cloud]
     if stateful:
         cmd.append("--stateful")
     proc = subprocess.Popen(
@@ -595,6 +604,288 @@ def test_filters(client: GraphClient, hardened_client: GraphClient | None = None
     return results
 
 
+# ---------------------------------------------------------------------------
+# Cloud target tests — GCC High + Commercial E5
+# ---------------------------------------------------------------------------
+
+def test_cloud_targets() -> list[tuple[str, bool, str]]:
+    """Test GCC High and Commercial E5 cloud targets."""
+    results = []
+    ports = [get_free_port(), get_free_port()]
+
+    # --- GCC High ---
+    proc_gcc = start_server(ports[0], "greenfield", cloud="gcc-high")
+    try:
+        client = GraphClient(f"http://localhost:{ports[0]}")
+
+        # Health check
+        r = client.get("/health")
+        health = r.json()
+        results.append(("GCC High: health endpoint", r.status_code == 200 and health.get("cloud") == "gcc-high",
+                         f"cloud={health.get('cloud')}"))
+
+        # Organization identity
+        org = client.get_organization()
+        org_name = org[0].get("displayName", "") if org else ""
+        results.append(("GCC High: org is Contoso Defense Federal LLC",
+                         org_name == "Contoso Defense Federal LLC",
+                         f"displayName={org_name}"))
+
+        # Graph API URL uses .us
+        r = client.get("/v1.0/users")
+        context = r.json().get("@odata.context", "")
+        results.append(("GCC High: @odata.context uses graph.microsoft.us",
+                         "graph.microsoft.us" in context,
+                         f"context={context[:60]}"))
+
+        # Domain is .us
+        domains = client.get_domains()
+        has_us = any("contoso-defense.us" in d.get("id", "") for d in domains)
+        results.append(("GCC High: domain is contoso-defense.us", has_us,
+                         f"domains={[d.get('id') for d in domains]}"))
+    finally:
+        stop_server(proc_gcc)
+
+    # --- Commercial E5 ---
+    proc_e5 = start_server(ports[1], "greenfield", cloud="commercial-e5")
+    try:
+        client = GraphClient(f"http://localhost:{ports[1]}")
+
+        # Health check
+        r = client.get("/health")
+        health = r.json()
+        results.append(("Commercial E5: health endpoint",
+                         r.status_code == 200 and health.get("cloud") == "commercial-e5",
+                         f"cloud={health.get('cloud')}"))
+
+        # Organization identity
+        org = client.get_organization()
+        org_name = org[0].get("displayName", "") if org else ""
+        results.append(("Commercial E5: org is Contoso Corp",
+                         org_name == "Contoso Corp",
+                         f"displayName={org_name}"))
+
+        # Graph API URL uses .com
+        r = client.get("/v1.0/users")
+        context = r.json().get("@odata.context", "")
+        results.append(("Commercial E5: @odata.context uses graph.microsoft.com",
+                         "graph.microsoft.com" in context,
+                         f"context={context[:60]}"))
+    finally:
+        stop_server(proc_e5)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# X-Mock-Cloud header override tests
+# ---------------------------------------------------------------------------
+
+def test_mock_cloud_header() -> list[tuple[str, bool, str]]:
+    """Test X-Mock-Cloud header switches fixture context at runtime."""
+    results = []
+    port = get_free_port()
+
+    # Start a GCC Moderate server
+    proc = start_server(port, "greenfield", cloud="gcc-moderate")
+    try:
+        base = f"http://localhost:{port}"
+        headers = {"Authorization": "Bearer test", "X-Mock-Cloud": "gcc-high"}
+
+        # Default request should use gcc-moderate
+        r = httpx.get(f"{base}/v1.0/organization",
+                       headers={"Authorization": "Bearer test"})
+        ctx_default = r.json().get("@odata.context", "")
+        results.append(("Default: gcc-moderate context",
+                         "graph.microsoft.com" in ctx_default,
+                         f"context={ctx_default[:60]}"))
+
+        # Override to gcc-high
+        r = httpx.get(f"{base}/v1.0/organization", headers=headers)
+        ctx_override = r.json().get("@odata.context", "")
+        results.append(("X-Mock-Cloud: gcc-high overrides to .us",
+                         "graph.microsoft.us" in ctx_override,
+                         f"context={ctx_override[:60]}"))
+
+        org = r.json().get("value", [])
+        org_name = org[0].get("displayName", "") if org else ""
+        results.append(("X-Mock-Cloud: org switches to Federal LLC",
+                         org_name == "Contoso Defense Federal LLC",
+                         f"displayName={org_name}"))
+    finally:
+        stop_server(proc)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Extended $filter operator tests
+# ---------------------------------------------------------------------------
+
+def test_extended_filters(client: GraphClient) -> list[tuple[str, bool, str]]:
+    """Test extended OData $filter operators: ne, gt, lt, startswith, contains, in."""
+    results = []
+
+    # ne operator
+    r = client.get("/v1.0/users", params={"$filter": "userType ne 'Guest'"})
+    ne_result = r.json().get("value", [])
+    results.append(("$filter ne: userType ne Guest", len(ne_result) == 2,
+                     f"{len(ne_result)} results"))
+
+    # startswith
+    r = client.get("/v1.0/users", params={"$filter": "startswith(displayName,'Mike')"})
+    sw_result = r.json().get("value", [])
+    results.append(("$filter startswith: displayName starts with Mike", len(sw_result) == 1,
+                     f"{len(sw_result)} results, name={sw_result[0].get('displayName') if sw_result else '?'}"))
+
+    # contains
+    r = client.get("/v1.0/users", params={"$filter": "contains(displayName,'Morris')"})
+    ct_result = r.json().get("value", [])
+    results.append(("$filter contains: displayName contains Morris", len(ct_result) == 1,
+                     f"{len(ct_result)} results"))
+
+    # gt on secure scores
+    r = client.get("/v1.0/security/secureScores", params={"$filter": "currentScore gt 10"})
+    gt_result = r.json().get("value", [])
+    results.append(("$filter gt: currentScore gt 10", len(gt_result) == 1,
+                     f"{len(gt_result)} results"))
+
+    # lt on secure scores
+    r = client.get("/v1.0/security/secureScores", params={"$filter": "currentScore lt 10"})
+    lt_result = r.json().get("value", [])
+    results.append(("$filter lt: currentScore lt 10", len(lt_result) == 0,
+                     f"{len(lt_result)} results"))
+
+    # ge on secure scores
+    r = client.get("/v1.0/security/secureScores", params={"$filter": "currentScore ge 12"})
+    ge_result = r.json().get("value", [])
+    results.append(("$filter ge: currentScore ge 12", len(ge_result) == 1,
+                     f"{len(ge_result)} results"))
+
+    # le on secure scores
+    r = client.get("/v1.0/security/secureScores", params={"$filter": "currentScore le 12"})
+    le_result = r.json().get("value", [])
+    results.append(("$filter le: currentScore le 12", len(le_result) == 1,
+                     f"{len(le_result)} results"))
+
+    # or combinator
+    r = client.get("/v1.0/users",
+                    params={"$filter": "displayName eq 'Mike Morris' or displayName eq 'BreakGlass Admin'"})
+    or_result = r.json().get("value", [])
+    results.append(("$filter or: two display names", len(or_result) == 2,
+                     f"{len(or_result)} results"))
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Partial scenario tests — mid-deployment posture
+# ---------------------------------------------------------------------------
+
+def test_partial_scenario() -> list[tuple[str, bool, str]]:
+    """Test the partial (mid-deployment) scenario."""
+    results = []
+    port = get_free_port()
+
+    proc = start_server(port, "partial", cloud="gcc-moderate")
+    try:
+        client = GraphClient(f"http://localhost:{port}")
+
+        # Health check
+        r = client.get("/health")
+        health = r.json()
+        results.append(("Partial: health endpoint",
+                         r.status_code == 200 and health.get("scenario") == "partial",
+                         f"scenario={health.get('scenario')}"))
+
+        # Should have SOME CA policies (not 0 like greenfield, not 8 like hardened)
+        policies = client.get_ca_policies()
+        results.append(("Partial: has some CA policies (1-7)",
+                         0 < len(policies) < 8,
+                         f"{len(policies)} policies"))
+
+        # Policies should still exclude break-glass
+        if policies:
+            first = policies[0]
+            excluded = (first.get("conditions") or {}).get("users", {}).get("excludeUsers", [])
+            results.append(("Partial: break-glass excluded from CA",
+                             BREAKGLASS_ID in excluded,
+                             f"excludeUsers={excluded}"))
+
+        # Should have some auth methods enabled but not all
+        auth = client.get_auth_methods_policy()
+        configs = auth.get("authenticationMethodConfigurations", [])
+        enabled = [c for c in configs if c.get("state") == "enabled"]
+        results.append(("Partial: some auth methods enabled",
+                         0 < len(enabled) < len(configs),
+                         f"{len(enabled)}/{len(configs)} enabled"))
+
+        # Organization should still be the same tenant
+        org = client.get_organization()
+        org_name = org[0].get("displayName", "") if org else ""
+        results.append(("Partial: same tenant identity",
+                         org_name == "Contoso Defense LLC",
+                         f"displayName={org_name}"))
+    finally:
+        stop_server(proc)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Auth edge cases — Bearer-only enforcement
+# ---------------------------------------------------------------------------
+
+def test_auth_edge_cases() -> list[tuple[str, bool, str]]:
+    """Test auth enforcement edge cases."""
+    results = []
+    port = get_free_port()
+
+    proc = start_server(port, "greenfield")
+    try:
+        base = f"http://localhost:{port}"
+
+        # No header -> 401
+        r = httpx.get(f"{base}/v1.0/users")
+        results.append(("Auth: missing header -> 401", r.status_code == 401,
+                         f"status={r.status_code}"))
+
+        # Bearer token -> 200
+        r = httpx.get(f"{base}/v1.0/users",
+                       headers={"Authorization": "Bearer test-token"})
+        results.append(("Auth: Bearer token -> 200", r.status_code == 200,
+                         f"status={r.status_code}"))
+
+        # Basic auth -> 401 (Bearer-only)
+        r = httpx.get(f"{base}/v1.0/users",
+                       headers={"Authorization": "Basic dXNlcjpwYXNz"})
+        results.append(("Auth: Basic scheme -> 401 (Bearer-only)", r.status_code == 401,
+                         f"status={r.status_code}"))
+
+        # Empty Bearer -> 401
+        r = httpx.get(f"{base}/v1.0/users",
+                       headers={"Authorization": "Bearer"})
+        results.append(("Auth: empty Bearer -> 401", r.status_code == 401,
+                         f"status={r.status_code}"))
+
+        # Health endpoint skips auth
+        r = httpx.get(f"{base}/health")
+        results.append(("Auth: /health no auth required", r.status_code == 200,
+                         f"status={r.status_code}"))
+
+        # Error sim: Retry-After value
+        r = httpx.get(f"{base}/v1.0/users",
+                       headers={"Authorization": "Bearer t"},
+                       params={"mock_status": "429"})
+        retry_after = r.headers.get("retry-after", "")
+        results.append(("Error sim: Retry-After is 1", retry_after == "1",
+                         f"Retry-After={retry_after}"))
+    finally:
+        stop_server(proc)
+
+    return results
+
+
 def print_results(title: str, results: list[tuple[str, bool, str]]):
     print(f"\n{'=' * 70}")
     print(f"  {title}")
@@ -660,7 +951,9 @@ def print_deploy(results: list[tuple[str, bool, str]]):
 def main():
     parser = argparse.ArgumentParser(description="m365-sim Test Harness")
     parser.add_argument("--workflow",
-                        choices=["assess", "deploy", "stateful", "filter", "all"],
+                        choices=["assess", "deploy", "stateful", "filter",
+                                 "cloud", "mock-cloud", "extended-filter",
+                                 "partial", "auth", "all"],
                         default="all")
     parser.add_argument("--port", type=int, default=0, help="Port (0 = auto)")
     args = parser.parse_args()
@@ -750,6 +1043,50 @@ def main():
             stop_server(proc_h); procs.remove(proc_h)
 
             if not all(ok for _, ok, _ in filter_results):
+                all_ok = False
+
+        # ---- CLOUD TARGETS workflow ----
+        if args.workflow in ("cloud", "all"):
+            print("\nTesting cloud targets (GCC High, Commercial E5)...")
+            cloud_results = test_cloud_targets()
+            print_results("Cloud Targets — GCC High + Commercial E5", cloud_results)
+            if not all(ok for _, ok, _ in cloud_results):
+                all_ok = False
+
+        # ---- X-MOCK-CLOUD workflow ----
+        if args.workflow in ("mock-cloud", "all"):
+            print("\nTesting X-Mock-Cloud header override...")
+            mock_cloud_results = test_mock_cloud_header()
+            print_results("X-Mock-Cloud Header Override", mock_cloud_results)
+            if not all(ok for _, ok, _ in mock_cloud_results):
+                all_ok = False
+
+        # ---- EXTENDED FILTER workflow ----
+        if args.workflow in ("extended-filter", "all"):
+            print("\nStarting greenfield server for extended filter tests...")
+            proc = start_server(ports[0], "greenfield")
+            procs.append(proc)
+            client = GraphClient(f"http://localhost:{ports[0]}")
+            ext_filter_results = test_extended_filters(client)
+            print_results("Extended $filter Operators (ne, gt, lt, startswith, contains)", ext_filter_results)
+            stop_server(proc); procs.remove(proc)
+            if not all(ok for _, ok, _ in ext_filter_results):
+                all_ok = False
+
+        # ---- PARTIAL SCENARIO workflow ----
+        if args.workflow in ("partial", "all"):
+            print("\nTesting partial (mid-deployment) scenario...")
+            partial_results = test_partial_scenario()
+            print_results("Partial Scenario — Mid-Deployment Posture", partial_results)
+            if not all(ok for _, ok, _ in partial_results):
+                all_ok = False
+
+        # ---- AUTH EDGE CASES workflow ----
+        if args.workflow in ("auth", "all"):
+            print("\nTesting auth enforcement edge cases...")
+            auth_results = test_auth_edge_cases()
+            print_results("Auth Enforcement + Error Simulation", auth_results)
+            if not all(ok for _, ok, _ in auth_results):
                 all_ok = False
 
     finally:
