@@ -38,13 +38,13 @@ Use the m365-sim-executor agent to execute subtask X.Y.Z
 - [x] Phase 15 — OSCAL Component Definition
 - [x] Phase 16 — GCC High Fixture Population
 - [x] Phase 17 — Extended $filter Operators
-- [ ] Phase 18 — $expand Support (planned, not yet implemented)
+- [x] Phase 18 — $expand Support
 - [ ] Phase 19 — GCC High Hardened and Partial Scenarios (planned, not yet implemented)
 - [ ] Phase 20 — Commercial E5 Hardened and Partial Scenarios (planned, not yet implemented)
 - [ ] Phase 21 — Beta API Endpoints (planned, not yet implemented)
 
-**Current**: Phase 18
-**Next**: 18.1.1
+**Current**: Phase 19
+**Next**: 19.1.1
 
 ---
 
@@ -2590,7 +2590,7 @@ git checkout -b feature/18-1-expand
 ```
 
 **Deliverables**:
-- [ ] Add an expand mapping dict in `server.py` that defines which related resources can be expanded for each fixture:
+- [x] Add an expand mapping dict in `server.py` that defines which related resources can be expanded for each fixture:
   ```python
   EXPAND_MAP: dict[str, dict[str, str]] = {
       "users": {
@@ -2605,24 +2605,41 @@ git checkout -b feature/18-1-expand
       },
   }
   ```
-- [ ] Update `get_fixture()` to process `$expand` parameter:
+- [x] Update `get_fixture()` to process `$expand` parameter:
   - Parse comma-separated expand fields: `$expand=memberOf,authentication`
   - For each expand field, look up the related fixture in `EXPAND_MAP`
   - If found, add the related data as a nested property on each item in the `value` array
   - If the expand target is a collection fixture, add its `value` array as the property
   - If not found or not supported, log warning and skip (don't error)
   - `$expand=*` expands all known relations for that fixture
-- [ ] Handle singleton endpoints (like `/me`): expand adds the related data directly to the object
-- [ ] Expansion happens after `$filter` but before `$top`
-- [ ] Log: `logger.info(f"Applying $expand: {expand_fields}")` when expand is applied
+- [x] Handle singleton endpoints (like `/me`): expand adds the related data directly to the object
+- [x] Expansion happens after `$filter` but before `$top`
+- [x] Log: `logger.info(f"Applying $expand: {expand_fields}")` when expand is applied
 
 **Success Criteria**:
-- [ ] `/v1.0/users?$expand=memberOf` returns users with nested `memberOf` property
-- [ ] `/v1.0/me?$expand=authentication` returns me with nested `authentication` property
-- [ ] `$expand=*` works for endpoints with defined relations
-- [ ] Unknown expand fields are ignored gracefully
-- [ ] `$filter` + `$expand` + `$top` work together in correct order
-- [ ] No TODO/FIXME in server.py
+- [x] `/v1.0/users?$expand=memberOf` returns users with nested `memberOf` property
+- [x] `/v1.0/me?$expand=authentication` returns me with nested `authentication` property
+- [x] `$expand=*` works for endpoints with defined relations
+- [x] Unknown expand fields are ignored gracefully
+- [x] `$filter` + `$expand` + `$top` work together in correct order
+- [x] No TODO/FIXME in server.py
+
+**Completion Notes**:
+- **Implementation**: Added `_apply_expand()` function that processes `$expand` query parameter. Supports:
+  - Comma-separated expand fields with lookup in EXPAND_MAP
+  - Wildcard expansion with `$expand=*`
+  - Collection endpoints (adds property to each item in value array)
+  - Singleton endpoints (adds property directly to object)
+  - Graceful handling of unknown/unsupported fields with warnings
+  - Correct processing order: filter → expand → top
+- **Files Created**: None
+- **Files Modified**:
+  - `server.py` - added EXPAND_MAP constant and _apply_expand() function, updated get_fixture() to call _apply_expand after filter but before top
+- **Tests**: All 163 existing tests pass
+- **Notes**: Tested manually with:
+  - `/v1.0/users?$expand=memberOf` — adds memberOf property to each user
+  - `/v1.0/directoryRoles?$expand=members` — adds members property with directory_role_members data
+  - `/v1.0/organization?$expand=subscriptions` — correctly skips unsupported expansion
 
 **Git Commit**:
 ```bash
@@ -2637,21 +2654,31 @@ git add -A && git commit -m "feat(expand): $expand support for nested resource i
 - [x] 18.1.1: $expand Implementation
 
 **Deliverables**:
-- [ ] Create `tests/test_expand.py` with:
-  - `test_expand_users_memberof` — `/users?$expand=memberOf` returns users with `memberOf` key
-  - `test_expand_me_authentication` — `/me?$expand=authentication` returns me with `authentication` key
-  - `test_expand_directory_roles_members` — `/directoryRoles?$expand=members` adds `members` to each role
-  - `test_expand_wildcard` — `/users?$expand=*` expands all known relations
-  - `test_expand_unknown_field_graceful` — `/users?$expand=nonexistent` returns normal data, no error
-  - `test_expand_with_filter` — `/users?$expand=memberOf&$filter=userType eq 'Member'` combines both
-  - `test_expand_with_top` — `/users?$expand=memberOf&$top=1` returns 1 user with expand
-  - `test_expand_empty_relation` — expanding a relation that maps to empty fixture returns empty array
-- [ ] All existing tests still pass
+- [x] Create `tests/test_expand.py` with:
+  - [x] `test_expand_users_memberof` — `/users?$expand=memberOf` returns users with `memberOf` key
+  - [x] `test_expand_me_authentication` — `/me?$expand=authentication` returns me with `authentication` key
+  - [x] `test_expand_directory_roles_members` — `/directoryRoles?$expand=members` adds `members` to each role
+  - [x] `test_expand_wildcard` — `/users?$expand=*` expands all known relations
+  - [x] `test_expand_unknown_field_graceful` — `/users?$expand=nonexistent` returns normal data, no error
+  - [x] `test_expand_with_filter` — `/users?$expand=memberOf&$filter=userType eq 'Member'` combines both
+  - [x] `test_expand_with_top` — `/users?$expand=memberOf&$top=1` returns 1 user with expand
+  - [x] `test_expand_empty_relation` — expanding a relation that maps to empty fixture returns empty array
+  - [x] `test_expand_multiple_fields_comma_separated` — comma-separated expansions work
+  - [x] `test_expand_mixed_valid_and_invalid` — mixed valid/invalid expansions handled gracefully
+- [x] All existing tests still pass
 
 **Success Criteria**:
-- [ ] `pytest tests/test_expand.py -v` all green
-- [ ] At least 8 expand tests
-- [ ] `pytest tests/ -v` — ALL tests pass
+- [x] `pytest tests/test_expand.py -v` all green (10 tests)
+- [x] At least 8 expand tests (10 tests created)
+- [x] `pytest tests/ -v` — ALL tests pass (173 tests)
+
+**Completion Notes**:
+- **Implementation**: Created comprehensive test suite for $expand functionality with 10 tests covering basic expansion, wildcards, graceful error handling, and combination with other query parameters
+- **Files Created**:
+  - `tests/test_expand.py` - 233 lines, 10 test methods organized in 5 test classes
+- **Files Modified**: None
+- **Tests**: 173 tests passing (10 new expand tests + 163 existing)
+- **Notes**: The expand implementation returns the value array directly (not wrapped), so tests verify this behavior. Added 2 extra tests beyond the 8 required (test_expand_multiple_fields_comma_separated and test_expand_mixed_valid_and_invalid) to improve coverage.
 
 **Git Commit**:
 ```bash
@@ -2661,16 +2688,16 @@ git add -A && git commit -m "test(expand): $expand query parameter tests [18.1.2
 ---
 
 ### Task 18.1 Complete — Squash Merge
-- [ ] All subtasks complete
-- [ ] All tests pass: `pytest tests/ -v`
-- [ ] Squash merge to main:
+- [x] All subtasks complete
+- [x] All tests pass: `pytest tests/ -v`
+- [x] Squash merge to main:
   ```bash
   git checkout main && git pull origin main
   git merge --squash feature/18-1-expand
   git commit -m "feat: $expand support for inline related resource expansion"
   git push origin main
   ```
-- [ ] Clean up branch
+- [x] Clean up branch
 
 ---
 

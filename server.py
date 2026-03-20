@@ -36,6 +36,20 @@ PORT = 8888
 STATEFUL = False
 WATCH = False
 
+# Map of expandable relations: fixture_name -> {expand_field: fixture_to_load_or_None}
+EXPAND_MAP: dict[str, dict[str, str | None]] = {
+    "users": {
+        "memberOf": "groups",
+        "authentication": "me_auth_methods",
+    },
+    "directory_roles": {
+        "members": "directory_role_members",
+    },
+    "organization": {
+        "subscriptions": None,
+    },
+}
+
 
 def load_fixtures(cloud: str, scenario: str) -> dict[str, dict]:
     """Load all JSON fixtures from scenarios/{cloud}/{scenario}/*.json.
@@ -496,6 +510,96 @@ def _evaluate_filter(item: dict, conditions: list[dict]) -> bool:
     return result if result is not None else True
 
 
+def _apply_expand(data: dict, expand_expr: str, fixtures: dict[str, dict], fixture_name: str = "") -> dict:
+    """Apply OData $expand to add related resources.
+
+    For collection endpoints (with 'value' array), adds expanded property to each item.
+    For singleton endpoints (no 'value' array), adds expanded property directly.
+    Expansion happens after $filter but before $top.
+
+    $expand=field1,field2 expands specific fields.
+    $expand=* expands all known relations for the fixture type.
+    Unknown fields are logged and skipped gracefully.
+    """
+    if not expand_expr:
+        return data
+
+    result = copy.deepcopy(data)
+    is_collection = "value" in result and isinstance(result["value"], list)
+
+    # Parse expand fields
+    expand_fields = [f.strip() for f in expand_expr.split(",")]
+
+    # Determine fixture type - try to match against EXPAND_MAP
+    fixture_type = None
+
+    # First, try using the provided fixture_name
+    if fixture_name in EXPAND_MAP:
+        fixture_type = fixture_name
+    else:
+        # Infer from context - check which fixture type this could be
+        for potential_type in EXPAND_MAP.keys():
+            if potential_type == "users" and is_collection:
+                fixture_type = "users"
+                break
+            elif potential_type == "directory_roles" and is_collection:
+                fixture_type = "directory_roles"
+                break
+            elif potential_type == "organization" and not is_collection:
+                fixture_type = "organization"
+                break
+
+    if fixture_type is None or fixture_type not in EXPAND_MAP:
+        logger.warning(f"Could not determine fixture type for $expand")
+        return result
+
+    expand_map = EXPAND_MAP.get(fixture_type, {})
+
+    # Handle $expand=*
+    if expand_fields == ["*"]:
+        expand_fields = list(expand_map.keys())
+
+    # Apply expansions
+    for expand_field in expand_fields:
+        if expand_field == "*":
+            continue
+
+        if expand_field not in expand_map:
+            logger.warning(f"Unknown expand field '{expand_field}' for fixture type '{fixture_type}', skipping")
+            continue
+
+        target_fixture_name = expand_map[expand_field]
+        if target_fixture_name is None:
+            # Expand maps to None (unsupported expansion)
+            logger.info(f"Expand field '{expand_field}' not supported, skipping")
+            continue
+
+        # Load the target fixture
+        target_data = fixtures.get(target_fixture_name)
+        if target_data is None:
+            logger.warning(f"Expand target fixture '{target_fixture_name}' not found")
+            continue
+
+        # For collection target fixtures, use the 'value' array
+        if isinstance(target_data.get("value"), list):
+            expansion_value = target_data["value"]
+        else:
+            # For singleton fixtures, use the whole fixture
+            expansion_value = target_data
+
+        # Apply expansion
+        if is_collection:
+            # Add the expanded property to each item in the value array
+            for item in result.get("value", []):
+                item[expand_field] = copy.deepcopy(expansion_value)
+        else:
+            # For singleton endpoints, add directly to the object
+            result[expand_field] = copy.deepcopy(expansion_value)
+
+    logger.info(f"Applying $expand: {expand_fields}")
+    return result
+
+
 def _apply_filter(data: dict, filter_expr: str) -> dict:
     """Apply OData $filter to fixture data.
 
@@ -530,9 +634,10 @@ def _get_fixtures_for_request(request: Request) -> dict[str, dict]:
 
 
 def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResponse:
-    """Return fixture data with optional $filter and $top truncation.
+    """Return fixture data with optional $filter, $expand, and $top truncation.
 
-    $filter is applied; $select and $expand are logged but ignored.
+    Processing order: $filter → $expand → $top
+    $select is logged but ignored.
     """
     fixtures = _get_fixtures_for_request(request)
     data = fixtures.get(name)
@@ -550,15 +655,19 @@ def get_fixture(name: str, request: Request, top: int | None = None) -> JSONResp
 
     result = dict(data)  # shallow copy
 
-    # Apply $filter if present (applied before $top)
+    # Apply $filter if present (applied before $expand)
     filter_expr = request.query_params.get("$filter")
     if filter_expr:
         result = _apply_filter(result, filter_expr)
 
-    # Log ignored query params
-    for param in ("$select", "$expand"):
-        if param in request.query_params:
-            logger.info(f"Ignoring query param {param}={request.query_params.get(param)}")
+    # Apply $expand if present (applied after $filter but before $top)
+    expand_expr = request.query_params.get("$expand")
+    if expand_expr:
+        result = _apply_expand(result, expand_expr, fixtures, name)
+
+    # Log ignored query param
+    if "$select" in request.query_params:
+        logger.info(f"Ignoring query param $select={request.query_params.get('$select')}")
 
     # Apply $top truncation (after filter is applied)
     if top is not None and top >= 0 and "value" in result:
