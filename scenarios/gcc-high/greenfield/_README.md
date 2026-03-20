@@ -65,48 +65,16 @@ All responses must use `graph.microsoft.us` in the `@odata.context` field:
 
 ## Fixture Status
 
-### Placeholder Fixtures
-All fixtures in this directory are currently **placeholder stubs** with the following structure:
+All 29 fixtures in this directory contain **real data** representing a greenfield GCC High tenant ("Contoso Defense Federal LLC", domain `contoso-defense.us`). Populated in Phase 16.
 
-```json
-{
-  "@odata.context": "https://graph.microsoft.us/v1.0/$metadata#<resource>",
-  "_TODO": "Populate with GCC High-specific fixture data",
-  "value": []
-}
-```
-
-The `_TODO` field documents what data should be populated when this fixture is fully implemented.
-
-### Implementation Roadmap
-
-| Fixture | Status | Priority | Notes |
-|---------|--------|----------|-------|
-| users.json | TODO | High | Core identity data |
-| groups.json | TODO | High | Group memberships |
-| organization.json | TODO | High | Tenant organization |
-| conditional_access_policies.json | TODO | High | CA policy compliance |
-| devices.json | TODO | High | Device inventory |
-| managed_devices.json | TODO | Medium | Intune-managed devices |
-| directory_roles.json | TODO | High | RBAC role definitions |
-| role_assignments.json | TODO | High | Admin role assignments |
-| service_principals.json | TODO | Medium | Enterprise app principals |
-| applications.json | TODO | Medium | Application objects |
-| domains.json | TODO | High | Verified tenant domains |
-| auth_methods_policy.json | TODO | Medium | Authentication policy |
-| compliance_policies.json | TODO | Medium | Device compliance |
-| device_configurations.json | TODO | Medium | Device configuration profiles |
-| information_protection_labels.json | TODO | Low | Sensitivity labels |
-| secure_score_control_profiles.json | TODO | High | Secure Score framework |
-| secure_scores.json | TODO | High | Secure Score metrics |
-| All others | TODO | Low | Audit, incidents, alerts |
-
-### Why Placeholders?
-
-1. **Scenario isolation**: GCC High is a separate cloud ecosystem; fixtures will reflect cloud-specific tenant characteristics
-2. **Compliance accuracy**: GCC High fixtures must strictly conform to FedRAMP High + IL4/IL5 compliance profiles
-3. **Sovereign data**: Real GCC High data is compartmentalized; synthetic fixtures ensure no real data is exposed
-4. **Future-proofing**: Placeholder stubs allow server routes to be tested without full fixture implementation
+### Tenant Identity
+- **Organization**: Contoso Defense Federal LLC
+- **Primary domain**: `contoso-defense.us`
+- **OnMicrosoft domain**: `contosodefensefederal.onmicrosoft.us`
+- **Users**: Federal Admin + BreakGlass Admin (2 users)
+- **Secure Score**: 12.0 / 198.0 (fresh tenant)
+- **Directory Roles**: 14 built-in roles
+- **Service Principals**: 9 SPs including Microsoft Graph
 
 ## Running with GCC High
 
