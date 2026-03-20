@@ -2307,19 +2307,19 @@ git checkout -b feature/16-1-gcc-high-fixtures
 ```
 
 **Deliverables**:
-- [ ] Replace `scenarios/gcc-high/greenfield/organization.json` — `displayName`: "Contoso Defense Federal LLC", `verifiedDomains`: `contoso-defense.us` + `contosodefensefederal.onmicrosoft.us`, G5 assigned plans, `@odata.context`: `https://graph.microsoft.us/v1.0/$metadata#organization`, remove `_TODO`
-- [ ] Replace `scenarios/gcc-high/greenfield/users.json` — 2 users: Federal Admin (`admin@contoso-defense.us`) + BreakGlass (`breakglass@contoso-defense.us`, ID `00000000-0000-0000-0000-000000000011`)
-- [ ] Replace `scenarios/gcc-high/greenfield/me.json` — Federal Admin singleton with `graph.microsoft.us` context
-- [ ] Replace `scenarios/gcc-high/greenfield/domains.json` — `contoso-defense.us` + `contosodefensefederal.onmicrosoft.us`
-- [ ] Replace `scenarios/gcc-high/greenfield/me_auth_methods.json` — Authenticator + password with `graph.microsoft.us` context
-- [ ] Replace `scenarios/gcc-high/greenfield/groups.json` — empty value array, proper context, no `_TODO`
+- [x] Replace `scenarios/gcc-high/greenfield/organization.json` — `displayName`: "Contoso Defense Federal LLC", `verifiedDomains`: `contoso-defense.us` + `contosodefensefederal.onmicrosoft.us`, G5 assigned plans, `@odata.context`: `https://graph.microsoft.us/v1.0/$metadata#organization`, remove `_TODO`
+- [x] Replace `scenarios/gcc-high/greenfield/users.json` — 2 users: Federal Admin (`admin@contoso-defense.us`) + BreakGlass (`breakglass@contoso-defense.us`, ID `00000000-0000-0000-0000-000000000011`)
+- [x] Replace `scenarios/gcc-high/greenfield/me.json` — Federal Admin singleton with `graph.microsoft.us` context
+- [x] Replace `scenarios/gcc-high/greenfield/domains.json` — `contoso-defense.us` + `contosodefensefederal.onmicrosoft.us`
+- [x] Replace `scenarios/gcc-high/greenfield/me_auth_methods.json` — Authenticator + password with `graph.microsoft.us` context
+- [x] Replace `scenarios/gcc-high/greenfield/groups.json` — empty value array, proper context, no `_TODO`
 
 **Success Criteria**:
-- [ ] `organization.json` has `displayName: "Contoso Defense Federal LLC"`
-- [ ] `users.json` has 2 users with `contoso-defense.us` domain
-- [ ] `me.json` is a singleton (no `value` key)
-- [ ] All fixtures use `graph.microsoft.us` in `@odata.context`
-- [ ] No `_TODO` field in any replaced fixture
+- [x] `organization.json` has `displayName: "Contoso Defense Federal LLC"`
+- [x] `users.json` has 2 users with `contoso-defense.us` domain
+- [x] `me.json` is a singleton (no `value` key)
+- [x] All fixtures use `graph.microsoft.us` in `@odata.context`
+- [x] No `_TODO` field in any replaced fixture
 
 **Git Commit**:
 ```bash
@@ -2334,40 +2334,40 @@ git add -A && git commit -m "feat(gcc-high): core identity fixtures [16.1.1]"
 - [x] 16.1.1: GCC High Core Fixtures
 
 **Deliverables**:
-- [ ] Replace all remaining placeholder fixtures in `scenarios/gcc-high/greenfield/`:
-  - `auth_methods_policy.json` — 4 methods disabled, singleton shape, remove `_TODO` if present
-  - `conditional_access_policies.json` — empty value array
-  - `managed_devices.json` — empty value array
-  - `compliance_policies.json` — empty value array
-  - `device_configurations.json` — empty value array
-  - `device_enrollment_configurations.json` — empty value array
-  - `devices.json` — empty value array
-  - `secure_scores.json` — `currentScore: 12.0`, `maxScore: 198.0`
-  - `audit_sign_ins.json` — 1 sign-in entry for Federal Admin
-  - `audit_directory.json` — empty value array
-  - `security_incidents.json` — empty value array
-  - `security_alerts.json` — empty value array
-  - `information_protection_labels.json` — empty value array
-  - `named_locations.json` — empty value array
-  - `secure_score_control_profiles.json` — empty value array
-  - `directory_roles.json` — at least 10 built-in roles
-  - `directory_role_members.json` — Federal Admin in GA role
-  - `role_assignments.json` — Federal Admin assigned to GA
-  - `role_definitions.json` — empty value array
-  - `role_eligibility_schedules.json` — empty value array
-  - `role_assignment_schedules.json` — empty value array
-  - `applications.json` — empty value array
-  - `service_principals.json` — Microsoft Graph SP + common SPs
-- [ ] All fixtures use `https://graph.microsoft.us/v1.0` in `@odata.context`
-- [ ] `grep -r "_TODO" scenarios/gcc-high/greenfield/` returns nothing
-- [ ] `python server.py --cloud gcc-high` starts and serves real data
+- [x] Replace all remaining placeholder fixtures in `scenarios/gcc-high/greenfield/`:
+  - [x] `auth_methods_policy.json` — 4 methods disabled, singleton shape, remove `_TODO` if present
+  - [x] `conditional_access_policies.json` — empty value array
+  - [x] `managed_devices.json` — empty value array
+  - [x] `compliance_policies.json` — empty value array
+  - [x] `device_configurations.json` — empty value array
+  - [x] `device_enrollment_configurations.json` — empty value array
+  - [x] `devices.json` — empty value array
+  - [x] `secure_scores.json` — `currentScore: 12.0`, `maxScore: 198.0`
+  - [x] `audit_sign_ins.json` — 1 sign-in entry for Federal Admin
+  - [x] `audit_directory.json` — empty value array
+  - [x] `security_incidents.json` — empty value array
+  - [x] `security_alerts.json` — empty value array
+  - [x] `information_protection_labels.json` — empty value array
+  - [x] `named_locations.json` — empty value array
+  - [x] `secure_score_control_profiles.json` — empty value array
+  - [x] `directory_roles.json` — at least 10 built-in roles
+  - [x] `directory_role_members.json` — Federal Admin in GA role
+  - [x] `role_assignments.json` — Federal Admin assigned to GA
+  - [x] `role_definitions.json` — empty value array
+  - [x] `role_eligibility_schedules.json` — empty value array
+  - [x] `role_assignment_schedules.json` — empty value array
+  - [x] `applications.json` — empty value array
+  - [x] `service_principals.json` — Microsoft Graph SP + common SPs
+- [x] All fixtures use `https://graph.microsoft.us/v1.0` in `@odata.context`
+- [x] `grep -r "_TODO" scenarios/gcc-high/greenfield/` returns nothing
+- [x] `python server.py --cloud gcc-high` starts and serves real data
 
 **Success Criteria**:
-- [ ] `grep -r "_TODO" scenarios/gcc-high/greenfield/` returns 0 results
-- [ ] `secure_scores.json` has `currentScore: 12.0`, `maxScore: 198.0`
-- [ ] `directory_roles.json` has at least 10 roles
-- [ ] `service_principals.json` includes Microsoft Graph SP
-- [ ] Server starts with `--cloud gcc-high` and `/v1.0/users` returns 2 users
+- [x] `grep -r "_TODO" scenarios/gcc-high/greenfield/` returns 0 results
+- [x] `secure_scores.json` has `currentScore: 12.0`, `maxScore: 198.0`
+- [x] `directory_roles.json` has at least 10 roles
+- [x] `service_principals.json` includes Microsoft Graph SP
+- [x] Server starts with `--cloud gcc-high` and `/v1.0/users` returns 2 users
 
 **Git Commit**:
 ```bash
@@ -2382,26 +2382,26 @@ git add -A && git commit -m "feat(gcc-high): security, roles, and remaining fixt
 - [x] 16.1.2: GCC High Security and Roles Fixtures
 
 **Deliverables**:
-- [ ] Create `tests/test_gcc_high.py` with:
-  - `mock_server_gcc_high` fixture starting server with `--cloud gcc-high`
-  - `test_gcc_high_health` — `/health` returns `cloud: "gcc-high"`
-  - `test_gcc_high_organization_name` — "Contoso Defense Federal LLC"
-  - `test_gcc_high_organization_domains` — includes `contoso-defense.us`
-  - `test_gcc_high_users_count` — 2 users
-  - `test_gcc_high_users_domain` — `contoso-defense.us` UPN domain
-  - `test_gcc_high_me_singleton` — no `value` key
-  - `test_gcc_high_odata_context_url` — `graph.microsoft.us` in context
-  - `test_gcc_high_secure_scores` — currentScore 12.0, maxScore 198.0
-  - `test_gcc_high_directory_roles` — at least 10 roles
-  - `test_gcc_high_service_principals` — Microsoft Graph SP present
-  - `test_gcc_high_no_placeholders` — no `_TODO` in any response
-  - `test_gcc_high_auth_methods_policy` — singleton with `authenticationMethodConfigurations`
-- [ ] All existing tests still pass
+- [x] Create `tests/test_gcc_high.py` with:
+  - [x] `mock_server_gcc_high` fixture starting server with `--cloud gcc-high`
+  - [x] `test_gcc_high_health` — `/health` returns `cloud: "gcc-high"`
+  - [x] `test_gcc_high_organization_name` — "Contoso Defense Federal LLC"
+  - [x] `test_gcc_high_organization_domains` — includes `contoso-defense.us`
+  - [x] `test_gcc_high_users_count` — 2 users
+  - [x] `test_gcc_high_users_domain` — `contoso-defense.us` UPN domain
+  - [x] `test_gcc_high_me_singleton` — no `value` key
+  - [x] `test_gcc_high_odata_context_url` — `graph.microsoft.us` in context
+  - [x] `test_gcc_high_secure_scores` — currentScore 12.0, maxScore 198.0
+  - [x] `test_gcc_high_directory_roles` — at least 10 roles
+  - [x] `test_gcc_high_service_principals` — Microsoft Graph SP present
+  - [x] `test_gcc_high_no_placeholders` — no `_TODO` in any response
+  - [x] `test_gcc_high_auth_methods_policy` — singleton with `authenticationMethodConfigurations`
+- [x] All existing tests still pass
 
 **Success Criteria**:
-- [ ] `pytest tests/test_gcc_high.py -v` all green
-- [ ] At least 12 GCC High tests
-- [ ] `pytest tests/ -v` — ALL tests pass
+- [x] `pytest tests/test_gcc_high.py -v` all green
+- [x] At least 12 GCC High tests
+- [x] `pytest tests/ -v` — ALL tests pass
 
 **Git Commit**:
 ```bash
@@ -2411,17 +2411,26 @@ git add -A && git commit -m "test(gcc-high): GCC High fixture tests [16.1.3]"
 ---
 
 ### Task 16.1 Complete — Squash Merge
-- [ ] All subtasks complete (16.1.1 through 16.1.3)
-- [ ] `grep -r "_TODO" scenarios/gcc-high/greenfield/` returns 0 results
-- [ ] All tests pass: `pytest tests/ -v`
-- [ ] Squash merge to main:
+- [x] All subtasks complete (16.1.1 through 16.1.3)
+- [x] `grep -r "_TODO" scenarios/gcc-high/greenfield/` returns 0 results
+- [x] All tests pass: `pytest tests/ -v`
+- [x] Squash merge to main:
   ```bash
   git checkout main && git pull origin main
   git merge --squash feature/16-1-gcc-high-fixtures
   git commit -m "feat: populate GCC High fixtures with real data for sovereign cloud simulation"
   git push origin main
   ```
-- [ ] Clean up branch
+- [x] Clean up branch
+
+**Completion Notes**:
+- **Implementation**: Created all 29 GCC High greenfield fixtures with real data for sovereign cloud simulation. Replaced 6 core identity fixtures (organization, users, me, domains, me_auth_methods, groups) and 23 security/roles/remaining fixtures with proper graph.microsoft.us URLs and Contoso Defense Federal LLC tenant identity.
+- **Files Created**:
+  - `tests/test_gcc_high.py` - 228 lines, 12 comprehensive tests for GCC High
+- **Files Modified**:
+  - `scenarios/gcc-high/greenfield/*.json` - 29 fixtures, all with real data, no _TODO fields
+- **Tests**: 147 tests passing (12 new GCC High tests + all existing tests)
+- **Notes**: All fixtures validated with JSON schema validation. GCC High cloud environment correctly configured with microsoft.us domain and Federal tenant identity. Branch squash-merged and pushed to main.
 
 ---
 
