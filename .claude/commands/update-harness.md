@@ -1,3 +1,7 @@
+---
+description: Update test_harness.py to cover all current features, iterate until passing
+---
+
 # Update Test Harness
 
 Update `test_harness.py` to exercise all current features, then iterate until it passes cleanly.

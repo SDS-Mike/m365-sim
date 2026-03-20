@@ -1,3 +1,7 @@
+---
+description: Run verifier agent, fix findings, re-verify until clean (max 3 iterations)
+---
+
 # Verify and Fix Loop
 
 Run the m365-sim verifier agent, then fix any findings, and re-verify until clean.
