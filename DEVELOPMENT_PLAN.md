@@ -2848,12 +2848,32 @@ git checkout -b feature/20-1-e5-scenarios
 ```
 
 **Deliverables**:
-- [ ] Create `scenarios/commercial-e5/hardened/` with 6 fixtures and `scenarios/commercial-e5/partial/` with 5 fixtures
-- [ ] All use `graph.microsoft.com` in `@odata.context`
-- [ ] Both scenarios inherit E5 greenfield for unchanged endpoints
+- [x] Create `scenarios/commercial-e5/hardened/` with 6 fixtures and `scenarios/commercial-e5/partial/` with 5 fixtures
+- [x] All use `graph.microsoft.com` in `@odata.context`
+- [x] Both scenarios inherit E5 greenfield for unchanged endpoints
 
 **Success Criteria**:
-- [ ] Server starts with both `--cloud commercial-e5 --scenario hardened` and `--scenario partial`
+- [x] Server starts with both `--cloud commercial-e5 --scenario hardened` and `--scenario partial`
+
+**Completion Notes**:
+- **Implementation**: Created hardened and partial scenario fixtures for Commercial E5 cloud targeting
+- **Files Created**:
+  - `scenarios/commercial-e5/hardened/conditional_access_policies.json` - 8 CMMC policies (all enabledForReportingButNotEnforced, break-glass excluded)
+  - `scenarios/commercial-e5/hardened/auth_methods_policy.json` - fido2, microsoftAuthenticator, temporaryAccessPass enabled; sms disabled
+  - `scenarios/commercial-e5/hardened/me_auth_methods.json` - 3 methods including FIDO2
+  - `scenarios/commercial-e5/hardened/managed_devices.json` - 3 compliant devices (Windows, Windows, iOS)
+  - `scenarios/commercial-e5/hardened/compliance_policies.json` - 3 policies (Windows, iOS, Android)
+  - `scenarios/commercial-e5/hardened/device_configurations.json` - 2 configs (ASR Rules, Defender AV)
+  - `scenarios/commercial-e5/partial/conditional_access_policies.json` - 3 CA policies
+  - `scenarios/commercial-e5/partial/auth_methods_policy.json` - microsoftAuthenticator only enabled
+  - `scenarios/commercial-e5/partial/me_auth_methods.json` - 2 methods (no FIDO2)
+  - `scenarios/commercial-e5/partial/managed_devices.json` - 1 device
+  - `scenarios/commercial-e5/partial/compliance_policies.json` - 1 policy (Windows)
+- **Domain**: contoso.com (Commercial E5 identity)
+- **Organization**: "Contoso Corp" (from greenfield inheritance)
+- **API URLs**: graph.microsoft.com (Commercial E5 cloud)
+- **Tests**: Verified server starts with both hardened and partial scenarios
+- **Notes**: Both scenarios inherit E5 greenfield for unchanged endpoints; fixtures mirror gcc-moderate hardened/partial but use contoso.com domain
 
 **Git Commit**:
 ```bash
@@ -2868,10 +2888,26 @@ git add -A && git commit -m "feat(commercial-e5): hardened and partial scenario 
 - [x] 20.1.1: Commercial E5 Hardened and Partial Fixtures
 
 **Deliverables**:
-- [ ] Create `tests/test_commercial_e5_scenarios.py` with 10+ tests
+- [x] Create `tests/test_commercial_e5_scenarios.py` with 10+ tests
 
 **Success Criteria**:
-- [ ] `pytest tests/ -v` — ALL tests pass
+- [x] `pytest tests/ -v` — ALL tests pass
+
+**Completion Notes**:
+- **Implementation**: Created comprehensive test suite for Commercial E5 hardened and partial scenarios
+- **Files Created**:
+  - `tests/test_commercial_e5_scenarios.py` - 18 tests covering hardened and partial scenarios
+- **Test Coverage**: 18 tests total
+  - Hardened (10 tests): CA policy count/state, break-glass exclusion, auth methods (FIDO2), devices (3), compliance (3), org identity, context URLs
+  - Partial (8 tests): CA policy count/state, auth methods (no FIDO2), devices (1), compliance (1), org identity
+- **All Tests Passing**: 208 total tests (18 new, 190 existing)
+- **Verification**:
+  - Server starts correctly with `--cloud commercial-e5 --scenario hardened`
+  - Server starts correctly with `--cloud commercial-e5 --scenario partial`
+  - Organization name verified as "Contoso Corp" (not "Contoso Defense LLC")
+  - Domain verified as contoso.com
+  - All fixture JSON valid and well-formed
+- **Notes**: Tests follow established pattern from gcc-moderate hardened/partial; verified inheritance from E5 greenfield
 
 **Git Commit**:
 ```bash
@@ -2881,7 +2917,7 @@ git add -A && git commit -m "test(commercial-e5): hardened and partial scenario 
 ---
 
 ### Task 20.1 Complete — Squash Merge
-- [ ] Squash merge to main, push, clean up
+- [x] Squash merge to main, push, clean up
 
 ---
 
